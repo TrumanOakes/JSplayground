@@ -140,28 +140,42 @@ Supported ops in this starter:
 
 ## 8) Deploy to GitHub Pages
 
-This repo includes a Pages deployment workflow at:
-
-`.github/workflows/deploy-pages.yml`
-
-It builds the app from:
-
-`VideoAudioImporter-cursor-javascript-playground-packages-a747/`
-
-and publishes the generated `dist/` artifact to GitHub Pages.
+This repo is configured for **Deploy from branch** (legacy Pages mode).
+The live site is served from the root of branch `Jsplayground`.
 
 ### One-time setup
 
 1. Open your repository on GitHub:
    `https://github.com/TrumanOakes/JSplayground`
 2. Go to **Settings → Pages**.
-3. Under **Build and deployment**, choose **Source: GitHub Actions**.
+3. Under **Build and deployment**, choose:
+   - **Source**: Deploy from a branch
+   - **Branch**: `Jsplayground`
+   - **Folder**: `/ (root)`
 
 ### Deploy
 
-- Push to `Jsplayground` or `main` and the workflow will deploy automatically.
-- You can also trigger it manually from the **Actions** tab via
-  **Deploy GitHub Pages → Run workflow**.
+When you update source code in:
+
+`VideoAudioImporter-cursor-javascript-playground-packages-a747/`
+
+publish a new branch build by running:
+
+```bash
+cd VideoAudioImporter-cursor-javascript-playground-packages-a747
+npm install
+BASE_PATH="/JSplayground/" npm run build
+cd ..
+rm -rf assets index.html .nojekyll
+cp -R VideoAudioImporter-cursor-javascript-playground-packages-a747/dist/assets ./assets
+cp VideoAudioImporter-cursor-javascript-playground-packages-a747/dist/index.html ./index.html
+touch .nojekyll
+git add assets index.html .nojekyll
+git commit -m "Publish updated GitHub Pages build"
+git push origin Jsplayground
+```
+
+After push, GitHub Pages serves the updated root files automatically.
 
 ### OAuth redirect update
 

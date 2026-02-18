@@ -1,0 +1,4 @@
+.tmp_*
+.tmp_nexus/
+VideoAudioImporter-cursor-javascript-playground-packages-a747/node_modules/
+VideoAudioImporter-cursor-javascript-playground-packages-a747/dist/
