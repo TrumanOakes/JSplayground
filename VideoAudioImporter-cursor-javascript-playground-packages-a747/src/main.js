@@ -70,6 +70,7 @@ let activeProjectStudioUrl = "";
 let isConnectingProject = false;
 let isInitializingAuth = false;
 let audiotoolQueue = Promise.resolve();
+let previewRenderVersion = 0;
 
 monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
 monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
@@ -165,6 +166,15 @@ function toDisplayString(value) {
   } catch {
     return String(value);
   }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function setAudiotoolStatus(message, state = "warn") {
@@ -272,10 +282,18 @@ function resolveProjectConnection(projectValue) {
   };
 }
 
-function setProjectPreview(studioUrl, note = "") {
-  if (!canEmbedAudiotoolStudio) {
-    projectPreview.src = "about:blank";
-    projectPreview.srcdoc = `<!doctype html>
+function renderProjectPreviewDocument(documentHtml) {
+  projectPreview.src = "about:blank";
+  projectPreview.srcdoc = documentHtml;
+}
+
+function createPreviewMessageDocument(message, details = "") {
+  const safeMessage = escapeHtml(message);
+  const safeDetails = details
+    ? `<p class="details">${escapeHtml(details)}</p>`
+    : "";
+
+  return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -291,62 +309,299 @@ function setProjectPreview(studioUrl, note = "") {
         text-align: center;
         padding: 24px;
       }
+      article {
+        max-width: 720px;
+      }
       p {
-        max-width: 620px;
         line-height: 1.5;
       }
-      code {
-        background: #08122a;
-        border: 1px solid #25345f;
-        border-radius: 6px;
-        padding: 2px 6px;
+      .details {
+        color: #9db2de;
+        font-size: 0.95rem;
       }
     </style>
   </head>
   <body>
-    <p>
-      Embedded Audiotool Studio is disabled on <code>${window.location.hostname}</code>.
-      Local dev is cross-site relative to <code>audiotool.com</code>, so login flow cookies are not valid in iframe context.
-      Use <strong>Open Project Tab</strong> for now, then deploy under an <code>*.audiotool.com</code> host to enable embedded preview.
-    </p>
+    <article>
+      <p>${safeMessage}</p>
+      ${safeDetails}
+    </article>
   </body>
 </html>`;
+}
+
+function resolveProjectResourceName(projectReference, studioUrl) {
+  const projectUuid =
+    extractProjectUuid(projectReference) || extractProjectUuid(studioUrl);
+  if (!projectUuid) {
+    return "";
+  }
+  return `projects/${projectUuid}`;
+}
+
+function normalizePreviewImageUrl(imageUrl) {
+  if (!imageUrl) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(imageUrl);
+    if (!parsed.searchParams.has("width")) {
+      parsed.searchParams.set("width", "1440");
+    }
+    if (!parsed.searchParams.has("height")) {
+      parsed.searchParams.set("height", "810");
+    }
+    if (!parsed.searchParams.has("fit")) {
+      parsed.searchParams.set("fit", "cover");
+    }
+    if (!parsed.searchParams.has("format")) {
+      parsed.searchParams.set("format", "webp");
+    }
+    return parsed.toString();
+  } catch {
+    return imageUrl;
+  }
+}
+
+async function loadProjectPreviewMetadata(studioUrl) {
+  const projectName = resolveProjectResourceName(activeProject, studioUrl);
+  if (!projectName) {
+    throw new Error("Could not infer a project UUID for preview metadata.");
+  }
+
+  const client = await ensureClient();
+  const response = await client.api.projectService.getProject({
+    name: projectName,
+  });
+
+  if (response instanceof Error) {
+    throw response;
+  }
+  if (!response.project) {
+    throw new Error("Project metadata is unavailable.");
+  }
+
+  const projectId = projectName.replace("projects/", "");
+  return {
+    projectId,
+    displayName: response.project.displayName || projectId,
+    description: response.project.description || "",
+    creatorName: response.project.creatorName || "",
+    imageUrl: normalizePreviewImageUrl(
+      response.project.snapshotUrl || response.project.coverUrl || "",
+    ),
+  };
+}
+
+function createSnapshotPreviewDocument(preview, studioUrl, note = "") {
+  const safeTitle = escapeHtml(preview.displayName || preview.projectId);
+  const safeProjectId = escapeHtml(preview.projectId);
+  const safeCreator = preview.creatorName
+    ? escapeHtml(preview.creatorName)
+    : "unknown";
+  const safeDescription = preview.description
+    ? escapeHtml(preview.description)
+    : "No project description available.";
+  const safeImageUrl = preview.imageUrl ? escapeHtml(preview.imageUrl) : "";
+  const safeStudioUrl = escapeHtml(studioUrl);
+  const safeNote = note
+    ? `<p class="note">${escapeHtml(note)}</p>`
+    : `<p class="note">Embedded Studio is not available on this host. Showing a snapshot preview instead.</p>`;
+  const imageHtml = safeImageUrl
+    ? `<img src="${safeImageUrl}" alt="Project snapshot preview" />`
+    : `<div class="empty-state">No cover/snapshot is available for this project yet.</div>`;
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        margin: 0;
+        background: #08122a;
+        color: #d4e0ff;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        padding: 20px;
+      }
+      .card {
+        max-width: 1100px;
+        margin: 0 auto;
+        border: 1px solid #25345f;
+        border-radius: 12px;
+        background: #0a142b;
+        overflow: hidden;
+      }
+      .media {
+        aspect-ratio: 16 / 9;
+        background: #060d1f;
+        display: grid;
+        place-items: center;
+      }
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .empty-state {
+        padding: 24px;
+        color: #95abd8;
+        text-align: center;
+      }
+      .content {
+        padding: 14px 16px 16px;
+        display: grid;
+        gap: 8px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+      p {
+        margin: 0;
+        line-height: 1.45;
+      }
+      .meta {
+        color: #95abd8;
+        font-size: 0.92rem;
+      }
+      .note {
+        color: #f8d681;
+        font-size: 0.9rem;
+      }
+      a {
+        width: fit-content;
+        margin-top: 2px;
+        border: 1px solid #3f5fa6;
+        background: #1d3a78;
+        color: #f8fafc;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a:hover {
+        background: #234996;
+      }
+    </style>
+  </head>
+  <body>
+    <article class="card">
+      <div class="media">
+        ${imageHtml}
+      </div>
+      <section class="content">
+        <h1>${safeTitle}</h1>
+        <p class="meta">Project ID: ${safeProjectId}</p>
+        <p class="meta">Creator: ${safeCreator}</p>
+        <p>${safeDescription}</p>
+        ${safeNote}
+        <a href="${safeStudioUrl}" target="_blank" rel="noopener noreferrer">Open Project in new tab</a>
+      </section>
+    </article>
+  </body>
+</html>`;
+}
+
+async function showFallbackProjectPreview(
+  studioUrl,
+  note = "",
+  requestVersion = previewRenderVersion,
+) {
+  renderProjectPreviewDocument(
+    createPreviewMessageDocument(
+      "Loading project preview metadata...",
+      note ||
+        "Embedded Studio is blocked in this context. Falling back to project snapshot/cover.",
+    ),
+  );
+
+  try {
+    const previewMetadata = await loadProjectPreviewMetadata(studioUrl);
+    if (requestVersion !== previewRenderVersion) {
+      return;
+    }
+
+    renderProjectPreviewDocument(
+      createSnapshotPreviewDocument(previewMetadata, studioUrl, note),
+    );
+  } catch (error) {
+    if (requestVersion !== previewRenderVersion) {
+      return;
+    }
+
+    const detail = toDisplayString(error);
+    renderProjectPreviewDocument(
+      createPreviewMessageDocument(
+        "Connected, but preview could not be rendered in this frame.",
+        `Use Open Project Tab to continue in Studio. Details: ${detail}`,
+      ),
+    );
+    appendConsoleLine("warn", `Preview fallback failed: ${detail}`);
+  }
+}
+
+function setProjectPreview(studioUrl, note = "") {
+  const requestVersion = ++previewRenderVersion;
+  projectPreview.onload = null;
+  projectPreview.onerror = null;
+
+  if (!studioUrl) {
+    renderProjectPreviewDocument(
+      createPreviewMessageDocument(
+        note || "Log in and connect a project to display Audiotool here.",
+      ),
+    );
     return;
   }
 
-  if (!studioUrl) {
-    projectPreview.src = "about:blank";
-    projectPreview.srcdoc = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      body {
-        margin: 0;
-        display: grid;
-        place-items: center;
-        min-height: 100vh;
-        background: #0a142b;
-        color: #d4e0ff;
-        font-family: Inter, system-ui, -apple-system, sans-serif;
-        text-align: center;
-        padding: 24px;
-      }
-      p {
-        max-width: 520px;
-        line-height: 1.5;
-      }
-    </style>
-  </head>
-  <body>
-    <p>${note || "Log in and connect a project to display Audiotool here."}</p>
-  </body>
-</html>`;
+  if (!canEmbedAudiotoolStudio) {
+    void showFallbackProjectPreview(
+      studioUrl,
+      note ||
+        `Embedded Studio is disabled on ${window.location.hostname}. Showing snapshot fallback.`,
+      requestVersion,
+    );
     return;
   }
+
+  let embedLoaded = false;
+  projectPreview.onload = () => {
+    embedLoaded = true;
+  };
+  projectPreview.onerror = () => {
+    if (requestVersion !== previewRenderVersion) {
+      return;
+    }
+
+    appendConsoleLine(
+      "warn",
+      "Embedded preview failed to load, switching to snapshot fallback.",
+    );
+    void showFallbackProjectPreview(
+      studioUrl,
+      "Embedded Studio could not be rendered in this frame.",
+      requestVersion,
+    );
+  };
 
   projectPreview.removeAttribute("srcdoc");
   projectPreview.src = studioUrl;
+  window.setTimeout(() => {
+    if (requestVersion !== previewRenderVersion || embedLoaded) {
+      return;
+    }
+
+    appendConsoleLine(
+      "warn",
+      "Embedded preview load timed out, switching to snapshot fallback.",
+    );
+    void showFallbackProjectPreview(
+      studioUrl,
+      "Embedded Studio did not finish loading in this frame.",
+      requestVersion,
+    );
+  }, 7000);
 }
 
 function updateControls() {
@@ -357,7 +612,7 @@ function updateControls() {
   connectButton.disabled = !loggedIn || isConnectingProject;
   disconnectButton.disabled = !activeDocument || isConnectingProject;
   openProjectButton.disabled = !activeProjectStudioUrl;
-  reloadPreviewButton.disabled = !activeProjectStudioUrl || !canEmbedAudiotoolStudio;
+  reloadPreviewButton.disabled = !activeProjectStudioUrl;
 }
 
 function queueAudiotoolTask(task) {
@@ -455,20 +710,20 @@ async function connectProject(project) {
     );
     appendConsoleLine(
       "system",
-      "Project preview updated. If the frame is blocked by browser policy, use Open Project Tab.",
+      "Project preview updated. If Studio iframe is blocked, snapshot fallback will be shown.",
     );
     appendConsoleLine(
       "system",
-      "If you see a login error in the embedded preview, allow third-party cookies for audiotool.com or use Open Project Tab.",
+      "Use Open Project Tab for full Studio editing/auth when browser policies block embedded login.",
     );
     appendConsoleLine(
       "system",
-      "Google sign-in can fail inside iframes. Authenticate in a full tab, then reload preview.",
+      "Google sign-in can fail inside iframes. Authenticate in a full tab if needed, then reload preview.",
     );
     if (!canEmbedAudiotoolStudio) {
       appendConsoleLine(
         "system",
-        "Embedded preview is disabled on local/non-audiotool hosts. Open Project Tab is the supported local workflow.",
+        "This host uses snapshot fallback preview; Open Project Tab remains the full Studio workflow.",
       );
     }
   } finally {
@@ -925,11 +1180,11 @@ reloadPreviewButton.addEventListener("click", () => {
 
   setProjectPreview(
     activeProjectStudioUrl,
-    "Project preview could not be loaded in this frame. Open it in a new tab.",
+    "Preview refreshed. If Studio iframe is blocked, snapshot fallback will be shown.",
   );
   appendConsoleLine(
     "system",
-    "Preview reloaded. If login still fails inside iframe, continue in Open Project Tab.",
+    "Preview reloaded.",
   );
 });
 
@@ -958,7 +1213,7 @@ async function initializeAudiotoolAuth() {
       appendConsoleLine("system", "Audiotool client initialized.");
       if (!canEmbedAudiotoolStudio) {
         setAudiotoolStatus(
-          "Logged in. Embedded preview is disabled on this host; use Open Project Tab for Studio.",
+          "Logged in. This host uses snapshot fallback preview; use Open Project Tab for full Studio.",
           "warn",
         );
       }

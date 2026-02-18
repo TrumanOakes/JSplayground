@@ -46,7 +46,9 @@ matches exactly (protocol, path, trailing slash).
 - Lets user login/logout with Audiotool (`getLoginStatus`)
 - Creates `AudiotoolClient` when logged in
 - Connects to one project via `createSyncedDocument({ project })`
-- Displays the connected Audiotool Studio project in the large preview pane
+- Shows project preview in the large pane:
+  - embedded Studio iframe when the host allows it
+  - automatic snapshot/cover fallback when iframe embedding is blocked
 - Starts sync with `document.start()`
 - Applies whitelisted operations from sandbox messages inside
   `document.modify(...)`
@@ -54,8 +56,8 @@ matches exactly (protocol, path, trailing slash).
 - Keeps the runtime iframe hidden (for safety) and shows logs in a collapsible
   console panel
 
-If your browser or Audiotool headers block embedding, use **Open Project Tab**
-to open the same connected project URL in a full tab.
+If embedded Studio is blocked, the app falls back to project snapshot/cover
+preview automatically. Use **Open Project Tab** for full Studio editing.
 
 If the embedded preview shows a login/session token error, this is usually due
 third-party cookie restrictions in iframe context. In that case:
@@ -69,10 +71,9 @@ Google-based sign-in is especially likely to fail in embedded iframe contexts.
 Top-level tab authentication is the expected fallback.
 
 Important: when running on `127.0.0.1` (or any non-`audiotool.com` host),
-embedded Studio auth is cross-site and will not reliably work because the
-accounts flow relies on same-site cookie behavior. Local development should use
-**Open Project Tab**. Embedded preview is intended for deployment under an
-`*.audiotool.com` site context.
+embedded Studio auth is cross-site and may fail because the accounts flow relies
+on same-site cookie behavior. In that case the app uses snapshot fallback in the
+preview pane, and **Open Project Tab** is the reliable full-workflow option.
 
 ---
 
@@ -137,7 +138,45 @@ Supported ops in this starter:
 
 ---
 
-## 8) Production hardening suggestions
+## 8) Deploy to GitHub Pages
+
+This repo includes a Pages deployment workflow at:
+
+`.github/workflows/deploy-pages.yml`
+
+It builds the app from:
+
+`VideoAudioImporter-cursor-javascript-playground-packages-a747/`
+
+and publishes the generated `dist/` artifact to GitHub Pages.
+
+### One-time setup
+
+1. Open your repository on GitHub:
+   `https://github.com/TrumanOakes/JSplayground`
+2. Go to **Settings → Pages**.
+3. Under **Build and deployment**, choose **Source: GitHub Actions**.
+
+### Deploy
+
+- Push to `Jsplayground` or `main` and the workflow will deploy automatically.
+- You can also trigger it manually from the **Actions** tab via
+  **Deploy GitHub Pages → Run workflow**.
+
+### OAuth redirect update
+
+After Pages is live, add the deployed URL (with trailing slash) as an additional
+redirect URI in:
+
+`https://developer.audiotool.com/applications`
+
+Example:
+
+`https://trumanoakes.github.io/JSplayground/`
+
+---
+
+## 9) Production hardening suggestions
 
 - Restrict allowed operation/entity types more tightly
 - Add strict request quotas/rate limits in UI layer
