@@ -177,6 +177,54 @@ body {
   font-size: 0.84rem;
 }
 
+.session-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.session-meta-list {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.session-meta-list div {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 8px;
+  font-size: 0.84rem;
+}
+
+.session-meta-list dt {
+  color: #8ea3d2;
+}
+
+.session-meta-list dd {
+  margin: 0;
+  color: #dbe7ff;
+  overflow-wrap: anywhere;
+}
+
+.session-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  max-height: 190px;
+  overflow: auto;
+  font-size: 0.84rem;
+  color: #dbe7ff;
+}
+
+.activity-list {
+  max-height: 240px;
+}
+
+.activity-list li {
+  line-height: 1.35;
+}
+
 #editor {
   flex: 1;
   min-height: 560px;
@@ -191,8 +239,7 @@ body {
 
 #project-preview {
   width: 100%;
-  flex: 1;
-  min-height: 760px;
+  min-height: 340px;
   border: 1px solid #25345f;
   border-radius: 8px;
   background: #0a142b;
@@ -251,7 +298,11 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .session-grid {
+    grid-template-columns: 1fr;
+  }
+
   #project-preview {
-    min-height: 640px;
+    min-height: 320px;
   }
 }

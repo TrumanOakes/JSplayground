@@ -69,29 +69,47 @@
         </section>
 
         <section class="pane preview-pane">
-          <h2>Project preview</h2>
+          <h2>Session preview</h2>
           <p class="subtle preview-hint">
-            The app always tries embedded Studio first. If browser policy blocks
-            it, snapshot fallback is shown automatically.
+            This pane shows the sandboxed JavaScript app state and apply activity.
+            The full Audiotool Studio opens in a separate tab.
           </p>
           <div class="buttons preview-buttons">
             <button id="reload-preview-btn" type="button" disabled>
-              Reload Preview
-            </button>
-            <button id="try-embed-preview-btn" type="button" disabled>
-              Try Embedded Preview
-            </button>
-            <button id="use-snapshot-preview-btn" type="button" disabled>
-              Use Snapshot Fallback
+              Refresh Data
             </button>
           </div>
           <p id="preview-mode-label" class="subtle preview-mode-label">
-            Preview mode: waiting for project connection.
+            Session mode: waiting for project connection.
           </p>
           <iframe
             id="project-preview"
-            title="Audiotool project preview"
+            title="Sandbox runtime preview"
+            sandbox="allow-scripts"
           ></iframe>
+          <section class="session-grid">
+            <article class="control-card">
+              <h2>Project session</h2>
+              <dl id="session-project-meta" class="session-meta-list"></dl>
+            </article>
+            <article class="control-card">
+              <h2>Entity summary</h2>
+              <p id="session-entity-summary" class="subtle"></p>
+              <ul id="session-entity-counts" class="session-list"></ul>
+            </article>
+            <article class="control-card">
+              <h2>Alias registry</h2>
+              <ul id="session-alias-summary" class="session-list"></ul>
+            </article>
+            <article class="control-card">
+              <h2>Last apply</h2>
+              <p id="session-last-apply" class="subtle"></p>
+            </article>
+          </section>
+          <section class="control-card">
+            <h2>Action log</h2>
+            <ul id="session-activity-log" class="session-list activity-list"></ul>
+          </section>
         </section>
       </main>
 
@@ -100,7 +118,6 @@
         <pre id="console-output"></pre>
       </details>
 
-      <iframe id="runtime-frame" sandbox="allow-scripts" hidden></iframe>
     </div>
 
     <script type="module" src="/src/main.js"></script>

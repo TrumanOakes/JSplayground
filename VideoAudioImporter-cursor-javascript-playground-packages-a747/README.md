@@ -46,36 +46,20 @@ matches exactly (protocol, path, trailing slash).
 - Lets user login/logout with Audiotool (`getLoginStatus`)
 - Creates `AudiotoolClient` when logged in
 - Connects to one project via `createSyncedDocument({ project })`
-- Shows project preview in the large pane:
-  - always tries embedded Studio iframe first
-  - automatically switches to snapshot/cover fallback when iframe embedding is blocked
-  - includes manual controls to force **Try Embedded Preview** or **Use Snapshot Fallback**
+- Shows a **Session Preview** in the large pane:
+  - sandbox runtime iframe for your editor code (`#app` output is visible)
+  - live project/session metadata (project id, creator, status)
+  - entity type counts + alias registry captured from apply operations
+  - action log for apply results, runtime warnings/errors, and sync events
 - Starts sync with `document.start()`
 - Applies whitelisted operations from sandbox messages inside
   `document.modify(...)`
 - Stops sync on disconnect/project switch/unload with `document.stop()`
-- Keeps the runtime iframe hidden (for safety) and shows logs in a collapsible
-  console panel
+- Keeps a collapsible console panel for full runtime logs.
 
-If embedded Studio is blocked, the app falls back to project snapshot/cover
-preview automatically. After authenticating in **Open Project Tab**, you can use
-**Try Embedded Preview** to attempt iframe mode again.
-
-If the embedded preview shows a login/session token error, this is usually due
-third-party cookie restrictions in iframe context. In that case:
-
-1. allow third-party cookies for `audiotool.com`,
-2. reconnect the project,
-3. authenticate once in **Open Project Tab**,
-4. then use **Reload Preview**.
-
-Google-based sign-in is especially likely to fail in embedded iframe contexts.
-Top-level tab authentication is the expected fallback.
-
-Important: when running on `127.0.0.1` or GitHub Pages, embedded Studio auth is
-cross-site and may fail because the accounts flow relies on same-site cookie
-behavior. In that case use **Open Project Tab** for authentication and keep
-snapshot fallback as the reliable preview mode.
+Studio itself is no longer embedded in-page. Use **Open Project Tab** to view
+and edit the full Audiotool Studio UI, which avoids third-party iframe cookie
+restrictions on GitHub Pages.
 
 ---
 

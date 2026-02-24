@@ -18,21 +18,6 @@ self.MonacoEnvironment = {
 const defaultPackages = "dayjs,lodash-es";
 const audiotoolClientId = "379f8d67-b211-43b2-8a9d-9553aa8aad32";
 const audiotoolScope = "project:write";
-const previewMode = Object.freeze({
-  AUTO: "auto",
-  EMBED: "embed",
-  EMBED_PENDING: "embed-pending",
-  SNAPSHOT: "snapshot",
-  EMPTY: "empty",
-});
-const previewFailureReason = Object.freeze({
-  NONE: "none",
-  EMBED_INIT: "embed_init",
-  IFRAME_ERROR: "iframe_error",
-  IFRAME_TIMEOUT: "iframe_timeout",
-  MANUAL_SNAPSHOT: "manual_snapshot",
-  METADATA_ERROR: "metadata_error",
-});
 const defaultSource = `import dayjs from "dayjs";
 import { startCase } from "lodash-es";
 
@@ -66,16 +51,18 @@ const connectButton = document.getElementById("connect-btn");
 const disconnectButton = document.getElementById("disconnect-btn");
 const openProjectButton = document.getElementById("open-project-btn");
 const reloadPreviewButton = document.getElementById("reload-preview-btn");
-const tryEmbedPreviewButton = document.getElementById("try-embed-preview-btn");
-const useSnapshotPreviewButton = document.getElementById(
-  "use-snapshot-preview-btn",
-);
 const previewModeLabel = document.getElementById("preview-mode-label");
 const audiotoolStatusElement = document.getElementById("audiotool-status");
 const redirectUrlElement = document.getElementById("redirect-url");
 const projectPreview = document.getElementById("project-preview");
-const runtimeFrame = document.getElementById("runtime-frame");
+const runtimeFrame = projectPreview;
 const consoleOutput = document.getElementById("console-output");
+const sessionProjectMeta = document.getElementById("session-project-meta");
+const sessionEntitySummary = document.getElementById("session-entity-summary");
+const sessionEntityCounts = document.getElementById("session-entity-counts");
+const sessionAliasSummary = document.getElementById("session-alias-summary");
+const sessionLastApply = document.getElementById("session-last-apply");
+const sessionActivityLog = document.getElementById("session-activity-log");
 
 packageInput.value = defaultPackages;
 
@@ -87,8 +74,13 @@ let activeProjectStudioUrl = "";
 let isConnectingProject = false;
 let isInitializingAuth = false;
 let audiotoolQueue = Promise.resolve();
-let previewRenderVersion = 0;
-let preferredPreviewMode = previewMode.AUTO;
+let sessionSubscriptions = [];
+let sessionEntityCountsState = new Map();
+let sessionAliasState = new Map();
+let sessionActivity = [];
+let sessionMeta = null;
+let lastApplySummary = "No apply requests yet.";
+let sessionConnectionStatus = "not connected";
 
 monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
 monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
@@ -195,37 +187,330 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function getFallbackReasonMessage(reasonCode) {
-  if (reasonCode === previewFailureReason.IFRAME_ERROR) {
-    return "Embedded iframe reported a load error.";
-  }
-  if (reasonCode === previewFailureReason.IFRAME_TIMEOUT) {
-    return "Embedded iframe timed out (likely frame/cookie policy restrictions).";
-  }
-  if (reasonCode === previewFailureReason.MANUAL_SNAPSHOT) {
-    return "Manual snapshot fallback selected.";
-  }
-  if (reasonCode === previewFailureReason.METADATA_ERROR) {
-    return "Snapshot metadata request failed.";
-  }
-  return "Embedded preview is unavailable right now.";
+function formatClockTime(date = new Date()) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
 }
 
-function setPreviewModeLabel(mode, detail = "") {
-  if (!previewModeLabel) {
+function addSessionSubscription(terminable) {
+  sessionSubscriptions.push(terminable);
+}
+
+function clearSessionSubscriptions() {
+  for (const subscription of sessionSubscriptions) {
+    try {
+      subscription?.terminate?.();
+    } catch {
+      // Ignore subscription cleanup failures.
+    }
+  }
+  sessionSubscriptions = [];
+}
+
+function setSessionModeLabel(message) {
+  if (previewModeLabel) {
+    previewModeLabel.textContent = `Session mode: ${message}`;
+  }
+}
+
+function pushSessionActivity(level, message, detail = "") {
+  sessionActivity.unshift({
+    at: formatClockTime(),
+    level,
+    message,
+    detail,
+  });
+  if (sessionActivity.length > 120) {
+    sessionActivity = sessionActivity.slice(0, 120);
+  }
+  renderSessionDashboard();
+}
+
+function updateSessionEntityCount(entityType, delta) {
+  const current = sessionEntityCountsState.get(entityType) || 0;
+  const next = Math.max(0, current + delta);
+  if (next === 0) {
+    sessionEntityCountsState.delete(entityType);
+    return;
+  }
+  sessionEntityCountsState.set(entityType, next);
+}
+
+function upsertSessionAlias(alias, entityType, entityId) {
+  sessionAliasState.set(alias, {
+    alias,
+    entityType,
+    entityId,
+    updatedAt: formatClockTime(),
+  });
+}
+
+function pruneAliasesByEntityIds(entityIds) {
+  const activeEntityIds = new Set(entityIds);
+  for (const [alias, value] of sessionAliasState.entries()) {
+    if (!activeEntityIds.has(value.entityId)) {
+      sessionAliasState.delete(alias);
+    }
+  }
+}
+
+function removeAliasesByEntityId(entityId) {
+  for (const [alias, value] of sessionAliasState.entries()) {
+    if (value.entityId === entityId) {
+      sessionAliasState.delete(alias);
+    }
+  }
+}
+
+function renderSessionMetaList() {
+  if (!sessionProjectMeta) {
     return;
   }
 
-  const displayMode = {
-    [previewMode.EMPTY]: "waiting for project connection",
-    [previewMode.AUTO]: "auto",
-    [previewMode.EMBED_PENDING]: "attempting embedded Studio",
-    [previewMode.EMBED]: "embedded Studio",
-    [previewMode.SNAPSHOT]: "snapshot fallback",
-  }[mode];
+  const values = sessionMeta
+    ? [
+        ["Project", sessionMeta.displayName || sessionMeta.projectId || "(unknown)"],
+        ["Project ID", sessionMeta.projectId || "(unknown)"],
+        ["Creator", sessionMeta.creatorName || "(unknown)"],
+        ["Status", sessionConnectionStatus],
+        ["Studio URL", sessionMeta.studioUrl || activeProjectStudioUrl || "(none)"],
+      ]
+    : [
+        ["Project", "(not connected)"],
+        ["Project ID", "-"],
+        ["Creator", "-"],
+        ["Status", sessionConnectionStatus],
+        ["Studio URL", "-"],
+      ];
 
-  const base = `Preview mode: ${displayMode || mode}.`;
-  previewModeLabel.textContent = detail ? `${base} ${detail}` : base;
+  sessionProjectMeta.innerHTML = values
+    .map(
+      ([key, value]) =>
+        `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd></div>`,
+    )
+    .join("");
+}
+
+function renderEntitySummaryList() {
+  if (!sessionEntitySummary || !sessionEntityCounts) {
+    return;
+  }
+
+  const total = Array.from(sessionEntityCountsState.values()).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+  sessionEntitySummary.textContent = `Total tracked entities: ${total.toLocaleString()}`;
+
+  const sorted = Array.from(sessionEntityCountsState.entries()).sort(
+    (a, b) => b[1] - a[1],
+  );
+  if (!sorted.length) {
+    sessionEntityCounts.innerHTML = "<li>No entities tracked yet.</li>";
+    return;
+  }
+
+  sessionEntityCounts.innerHTML = sorted
+    .slice(0, 20)
+    .map(
+      ([entityType, count]) =>
+        `<li><strong>${escapeHtml(entityType)}</strong>: ${count.toLocaleString()}</li>`,
+    )
+    .join("");
+}
+
+function renderAliasSummaryList() {
+  if (!sessionAliasSummary) {
+    return;
+  }
+
+  const aliases = Array.from(sessionAliasState.values()).sort((a, b) =>
+    a.alias.localeCompare(b.alias),
+  );
+  if (!aliases.length) {
+    sessionAliasSummary.innerHTML = "<li>No aliases captured yet.</li>";
+    return;
+  }
+
+  sessionAliasSummary.innerHTML = aliases
+    .map(
+      (entry) =>
+        `<li><strong>${escapeHtml(entry.alias)}</strong> → ${escapeHtml(entry.entityType)} <span class="subtle">(${escapeHtml(entry.entityId)})</span></li>`,
+    )
+    .join("");
+}
+
+function renderSessionActivityList() {
+  if (!sessionActivityLog) {
+    return;
+  }
+
+  if (!sessionActivity.length) {
+    sessionActivityLog.innerHTML = "<li>No activity yet.</li>";
+    return;
+  }
+
+  sessionActivityLog.innerHTML = sessionActivity
+    .map(
+      (item) =>
+        `<li><strong>${escapeHtml(item.at)}</strong> [${escapeHtml(item.level)}] ${escapeHtml(item.message)}${item.detail ? `<div class="subtle">${escapeHtml(item.detail)}</div>` : ""}</li>`,
+    )
+    .join("");
+}
+
+function renderLastApplySummary() {
+  if (!sessionLastApply) {
+    return;
+  }
+  sessionLastApply.textContent = lastApplySummary;
+}
+
+function renderSessionDashboard() {
+  renderSessionMetaList();
+  renderEntitySummaryList();
+  renderAliasSummaryList();
+  renderLastApplySummary();
+  renderSessionActivityList();
+}
+
+function resetSessionDashboard(message = "waiting for project connection") {
+  sessionMeta = null;
+  sessionEntityCountsState = new Map();
+  sessionAliasState = new Map();
+  sessionActivity = [];
+  lastApplySummary = "No apply requests yet.";
+  sessionConnectionStatus = "not connected";
+  setSessionModeLabel(message);
+  renderSessionDashboard();
+}
+
+async function refreshSessionEntitySummary() {
+  if (!activeDocument) {
+    sessionEntityCountsState = new Map();
+    renderSessionDashboard();
+    return;
+  }
+
+  const entities = activeDocument.queryEntities.get();
+  const counts = new Map();
+  for (const entity of entities) {
+    counts.set(entity.entityType, (counts.get(entity.entityType) || 0) + 1);
+  }
+  sessionEntityCountsState = counts;
+  pruneAliasesByEntityIds(entities.map((entity) => entity.id));
+  renderSessionDashboard();
+}
+
+async function refreshSessionMetadata() {
+  if (!activeProjectStudioUrl) {
+    sessionMeta = null;
+    renderSessionDashboard();
+    return;
+  }
+
+  try {
+    const metadata = await loadProjectPreviewMetadata(activeProjectStudioUrl);
+    sessionMeta = {
+      projectId: metadata.projectId,
+      displayName: metadata.displayName,
+      creatorName: metadata.creatorName,
+      description: metadata.description,
+      imageUrl: metadata.imageUrl,
+      studioUrl: activeProjectStudioUrl,
+    };
+  } catch (error) {
+    sessionMeta = {
+      projectId: activeProject || "(unknown)",
+      displayName: "(metadata unavailable)",
+      creatorName: "",
+      description: toDisplayString(error),
+      imageUrl: "",
+      studioUrl: activeProjectStudioUrl,
+    };
+    pushSessionActivity(
+      "warn",
+      "Could not load project metadata.",
+      toDisplayString(error),
+    );
+  }
+
+  renderSessionDashboard();
+}
+
+function attachSessionDocumentSubscriptions() {
+  if (!activeDocument) {
+    return;
+  }
+
+  clearSessionSubscriptions();
+
+  try {
+    if (activeDocument.connected?.subscribe) {
+      addSessionSubscription(
+        activeDocument.connected.subscribe((isConnected) => {
+          sessionConnectionStatus = isConnected ? "connected" : "reconnecting";
+          setSessionModeLabel(
+            isConnected
+              ? "sandbox runtime active; use Open Project Tab for Studio visuals."
+              : "connection interrupted, waiting for sync recovery...",
+          );
+          renderSessionDashboard();
+        }, true),
+      );
+    }
+  } catch (error) {
+    pushSessionActivity(
+      "warn",
+      "Connection status subscription unavailable.",
+      toDisplayString(error),
+    );
+  }
+
+  try {
+    if (activeDocument.events?.onCreate) {
+      addSessionSubscription(
+        activeDocument.events.onCreate("*", (entity) => {
+          updateSessionEntityCount(entity.entityType, 1);
+          pushSessionActivity(
+            "event",
+            `Entity created: ${entity.entityType}`,
+            entity.id,
+          );
+        }),
+      );
+    }
+  } catch (error) {
+    pushSessionActivity(
+      "warn",
+      "Entity create event subscription unavailable.",
+      toDisplayString(error),
+    );
+  }
+
+  try {
+    if (activeDocument.events?.onRemove) {
+      addSessionSubscription(
+        activeDocument.events.onRemove("*", (entity) => {
+          updateSessionEntityCount(entity.entityType, -1);
+          removeAliasesByEntityId(entity.id);
+          pushSessionActivity(
+            "event",
+            `Entity removed: ${entity.entityType}`,
+            entity.id,
+          );
+        }),
+      );
+    }
+  } catch (error) {
+    pushSessionActivity(
+      "warn",
+      "Entity remove event subscription unavailable.",
+      toDisplayString(error),
+    );
+  }
 }
 
 function setAudiotoolStatus(message, state = "warn") {
@@ -333,54 +618,6 @@ function resolveProjectConnection(projectValue) {
   };
 }
 
-function renderProjectPreviewDocument(documentHtml) {
-  projectPreview.src = "about:blank";
-  projectPreview.srcdoc = documentHtml;
-}
-
-function createPreviewMessageDocument(message, details = "") {
-  const safeMessage = escapeHtml(message);
-  const safeDetails = details
-    ? `<p class="details">${escapeHtml(details)}</p>`
-    : "";
-
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      body {
-        margin: 0;
-        display: grid;
-        place-items: center;
-        min-height: 100vh;
-        background: #0a142b;
-        color: #d4e0ff;
-        font-family: Inter, system-ui, -apple-system, sans-serif;
-        text-align: center;
-        padding: 24px;
-      }
-      article {
-        max-width: 720px;
-      }
-      p {
-        line-height: 1.5;
-      }
-      .details {
-        color: #9db2de;
-        font-size: 0.95rem;
-      }
-    </style>
-  </head>
-  <body>
-    <article>
-      <p>${safeMessage}</p>
-      ${safeDetails}
-    </article>
-  </body>
-</html>`;
-}
-
 function resolveProjectResourceName(projectReference, studioUrl) {
   const projectUuid =
     extractProjectUuid(projectReference) || extractProjectUuid(studioUrl);
@@ -445,237 +682,6 @@ async function loadProjectPreviewMetadata(studioUrl) {
   };
 }
 
-function createSnapshotPreviewDocument(preview, studioUrl, note = "") {
-  const safeTitle = escapeHtml(preview.displayName || preview.projectId);
-  const safeProjectId = escapeHtml(preview.projectId);
-  const safeCreator = preview.creatorName
-    ? escapeHtml(preview.creatorName)
-    : "unknown";
-  const safeDescription = preview.description
-    ? escapeHtml(preview.description)
-    : "No project description available.";
-  const safeImageUrl = preview.imageUrl ? escapeHtml(preview.imageUrl) : "";
-  const safeStudioUrl = escapeHtml(studioUrl);
-  const safeNote = note
-    ? `<p class="note">${escapeHtml(note)}</p>`
-    : `<p class="note">Embedded Studio is unavailable right now. Showing snapshot fallback.</p>`;
-  const imageHtml = safeImageUrl
-    ? `<img src="${safeImageUrl}" alt="Project snapshot preview" />`
-    : `<div class="empty-state">No cover/snapshot is available for this project yet.</div>`;
-
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      body {
-        margin: 0;
-        background: #08122a;
-        color: #d4e0ff;
-        font-family: Inter, system-ui, -apple-system, sans-serif;
-        padding: 20px;
-      }
-      .card {
-        max-width: 1100px;
-        margin: 0 auto;
-        border: 1px solid #25345f;
-        border-radius: 12px;
-        background: #0a142b;
-        overflow: hidden;
-      }
-      .media {
-        aspect-ratio: 16 / 9;
-        background: #060d1f;
-        display: grid;
-        place-items: center;
-      }
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      .empty-state {
-        padding: 24px;
-        color: #95abd8;
-        text-align: center;
-      }
-      .content {
-        padding: 14px 16px 16px;
-        display: grid;
-        gap: 8px;
-      }
-      h1 {
-        margin: 0;
-        font-size: 1.1rem;
-      }
-      p {
-        margin: 0;
-        line-height: 1.45;
-      }
-      .meta {
-        color: #95abd8;
-        font-size: 0.92rem;
-      }
-      .note {
-        color: #f8d681;
-        font-size: 0.9rem;
-      }
-      a {
-        width: fit-content;
-        margin-top: 2px;
-        border: 1px solid #3f5fa6;
-        background: #1d3a78;
-        color: #f8fafc;
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-weight: 600;
-        text-decoration: none;
-      }
-      a:hover {
-        background: #234996;
-      }
-    </style>
-  </head>
-  <body>
-    <article class="card">
-      <div class="media">
-        ${imageHtml}
-      </div>
-      <section class="content">
-        <h1>${safeTitle}</h1>
-        <p class="meta">Project ID: ${safeProjectId}</p>
-        <p class="meta">Creator: ${safeCreator}</p>
-        <p>${safeDescription}</p>
-        ${safeNote}
-        <a href="${safeStudioUrl}" target="_blank" rel="noopener noreferrer">Open Project in new tab</a>
-      </section>
-    </article>
-  </body>
-</html>`;
-}
-
-async function showFallbackProjectPreview(
-  studioUrl,
-  note = "",
-  requestVersion = previewRenderVersion,
-  reasonCode = previewFailureReason.NONE,
-) {
-  const reasonMessage = getFallbackReasonMessage(reasonCode);
-  const detailText = note ? `${note} ${reasonMessage}` : reasonMessage;
-
-  setPreviewModeLabel(previewMode.SNAPSHOT, reasonMessage);
-  renderProjectPreviewDocument(
-    createPreviewMessageDocument(
-      "Loading project preview metadata...",
-      detailText,
-    ),
-  );
-
-  try {
-    const previewMetadata = await loadProjectPreviewMetadata(studioUrl);
-    if (requestVersion !== previewRenderVersion) {
-      return;
-    }
-
-    renderProjectPreviewDocument(
-      createSnapshotPreviewDocument(previewMetadata, studioUrl, detailText),
-    );
-  } catch (error) {
-    if (requestVersion !== previewRenderVersion) {
-      return;
-    }
-
-    const detail = toDisplayString(error);
-    setPreviewModeLabel(
-      previewMode.SNAPSHOT,
-      getFallbackReasonMessage(previewFailureReason.METADATA_ERROR),
-    );
-    renderProjectPreviewDocument(
-      createPreviewMessageDocument(
-        "Connected, but preview could not be rendered in this frame.",
-        `Use Open Project Tab to continue in Studio. ${detailText} Details: ${detail}`,
-      ),
-    );
-    appendConsoleLine("warn", `Preview fallback failed: ${detail}`);
-  }
-}
-
-function setProjectPreview(studioUrl, note = "", options = {}) {
-  const requestVersion = ++previewRenderVersion;
-  const requestedMode = options.mode || preferredPreviewMode;
-  const reasonCode = options.reasonCode || previewFailureReason.EMBED_INIT;
-  projectPreview.onload = null;
-  projectPreview.onerror = null;
-
-  if (!studioUrl) {
-    setPreviewModeLabel(previewMode.EMPTY, note);
-    renderProjectPreviewDocument(
-      createPreviewMessageDocument(
-        note || "Log in and connect a project to display Audiotool here.",
-      ),
-    );
-    return;
-  }
-
-  if (requestedMode === previewMode.SNAPSHOT) {
-    void showFallbackProjectPreview(
-      studioUrl,
-      note || "Snapshot fallback selected.",
-      requestVersion,
-      reasonCode || previewFailureReason.MANUAL_SNAPSHOT,
-    );
-    return;
-  }
-
-  let embedLoaded = false;
-  setPreviewModeLabel(
-    previewMode.EMBED_PENDING,
-    note || "Trying embedded Studio iframe.",
-  );
-  projectPreview.onload = () => {
-    if (requestVersion !== previewRenderVersion) {
-      return;
-    }
-    embedLoaded = true;
-    setPreviewModeLabel(previewMode.EMBED, "Embedded Studio loaded.");
-  };
-  projectPreview.onerror = () => {
-    if (requestVersion !== previewRenderVersion) {
-      return;
-    }
-
-    appendConsoleLine(
-      "warn",
-      "Embedded preview failed to load, switching to snapshot fallback.",
-    );
-    void showFallbackProjectPreview(
-      studioUrl,
-      "Embedded Studio could not be rendered in this frame.",
-      requestVersion,
-      previewFailureReason.IFRAME_ERROR,
-    );
-  };
-
-  projectPreview.removeAttribute("srcdoc");
-  projectPreview.src = studioUrl;
-  window.setTimeout(() => {
-    if (requestVersion !== previewRenderVersion || embedLoaded) {
-      return;
-    }
-
-    appendConsoleLine(
-      "warn",
-      "Embedded preview load timed out, switching to snapshot fallback.",
-    );
-    void showFallbackProjectPreview(
-      studioUrl,
-      "Embedded Studio did not finish loading in this frame.",
-      requestVersion,
-      previewFailureReason.IFRAME_TIMEOUT,
-    );
-  }, 7000);
-}
-
 function updateControls() {
   const loggedIn = Boolean(loginStatus && loginStatus.loggedIn);
   authButton.disabled = isInitializingAuth;
@@ -685,13 +691,6 @@ function updateControls() {
   disconnectButton.disabled = !activeDocument || isConnectingProject;
   openProjectButton.disabled = !activeProjectStudioUrl;
   reloadPreviewButton.disabled = !activeProjectStudioUrl;
-  if (tryEmbedPreviewButton) {
-    tryEmbedPreviewButton.disabled = !activeProjectStudioUrl || isConnectingProject;
-  }
-  if (useSnapshotPreviewButton) {
-    useSnapshotPreviewButton.disabled =
-      !activeProjectStudioUrl || isConnectingProject;
-  }
 }
 
 function queueAudiotoolTask(task) {
@@ -705,12 +704,13 @@ async function stopActiveDocument(note = "Disconnected from project.") {
     return;
   }
 
+  clearSessionSubscriptions();
   const previousDoc = activeDocument;
   activeDocument = null;
   const previousProject = activeProject;
   activeProject = "";
   activeProjectStudioUrl = "";
-  setProjectPreview("", "Project preview is disconnected.");
+  resetSessionDashboard("project disconnected.");
   updateControls();
 
   try {
@@ -720,10 +720,16 @@ async function stopActiveDocument(note = "Disconnected from project.") {
       "system",
       `Stopped Audiotool sync for project: ${previousProject || "(unknown)"}`,
     );
+    pushSessionActivity(
+      "system",
+      "Project disconnected.",
+      previousProject || "(unknown)",
+    );
   } catch (error) {
     const detail = toDisplayString(error);
     setAudiotoolStatus(`Failed stopping project: ${detail}`, "error");
     appendConsoleLine("error", detail);
+    pushSessionActivity("error", "Error while stopping project sync.", detail);
   }
 }
 
@@ -777,12 +783,13 @@ async function connectProject(project) {
     activeDocument = document;
     activeProject = projectReference;
     activeProjectStudioUrl = studioUrl;
-    preferredPreviewMode = previewMode.AUTO;
-    setProjectPreview(
-      studioUrl,
-      "Project connected. Trying embedded Studio first.",
-      { mode: preferredPreviewMode, reasonCode: previewFailureReason.EMBED_INIT },
+    sessionConnectionStatus = "connected";
+    setSessionModeLabel(
+      "sandbox runtime active; use Open Project Tab for Studio visuals.",
     );
+    await refreshSessionMetadata();
+    await refreshSessionEntitySummary();
+    attachSessionDocumentSubscriptions();
     projectInput.value = studioUrl;
     setAudiotoolStatus(`Connected to project: ${projectReference}`, "ok");
     appendConsoleLine(
@@ -791,15 +798,20 @@ async function connectProject(project) {
     );
     appendConsoleLine(
       "system",
-      "Project preview updated. The app tries embedded Studio first and falls back when blocked.",
+      "Session preview is now data-driven and updates from sandbox/apply events.",
     );
     appendConsoleLine(
       "system",
-      "Use Open Project Tab for full Studio editing/auth, then retry embedded preview if needed.",
+      "Use Open Project Tab to view and edit the full Audiotool Studio UI.",
     );
     appendConsoleLine(
       "system",
-      "If embedded login fails, authenticate in Open Project Tab and click Try Embedded Preview.",
+      "The in-page preview now shows your sandbox runtime plus action log/state.",
+    );
+    pushSessionActivity(
+      "system",
+      "Project connected.",
+      `${projectReference} (${studioUrl})`,
     );
   } finally {
     isConnectingProject = false;
@@ -855,6 +867,9 @@ function safeUpdateField(t, fieldRef, value) {
 
 function applyAudiotoolOperations(t, operations) {
   const aliases = new Map();
+  const aliasUpdates = [];
+  const removedAliases = new Set();
+  const operationSummaries = [];
 
   for (const rawOp of operations) {
     if (!isRecord(rawOp)) {
@@ -866,6 +881,7 @@ function applyAudiotoolOperations(t, operations) {
     if (opName === "ensureEntity") {
       const entityType = asString(rawOp.entityType, "entityType");
       let entity = t.entities.ofTypes(entityType).getOne();
+      const existed = Boolean(entity);
 
       if (!entity) {
         const createValues = isRecord(rawOp.create) ? rawOp.create : {};
@@ -873,7 +889,20 @@ function applyAudiotoolOperations(t, operations) {
       }
 
       if (typeof rawOp.alias === "string" && rawOp.alias.trim()) {
-        aliases.set(rawOp.alias.trim(), entity);
+        const alias = rawOp.alias.trim();
+        aliases.set(alias, entity);
+        aliasUpdates.push({
+          alias,
+          entityType: entity.entityType,
+          entityId: entity.id,
+        });
+        operationSummaries.push(
+          `ensureEntity(${entityType}) as ${alias} (${existed ? "existing" : "created"})`,
+        );
+      } else {
+        operationSummaries.push(
+          `ensureEntity(${entityType}) (${existed ? "existing" : "created"})`,
+        );
       }
 
       continue;
@@ -885,7 +914,16 @@ function applyAudiotoolOperations(t, operations) {
       const entity = t.create(entityType, createValues);
 
       if (typeof rawOp.alias === "string" && rawOp.alias.trim()) {
-        aliases.set(rawOp.alias.trim(), entity);
+        const alias = rawOp.alias.trim();
+        aliases.set(alias, entity);
+        aliasUpdates.push({
+          alias,
+          entityType: entity.entityType,
+          entityId: entity.id,
+        });
+        operationSummaries.push(`createEntity(${entityType}) as ${alias}`);
+      } else {
+        operationSummaries.push(`createEntity(${entityType})`);
       }
 
       continue;
@@ -901,11 +939,18 @@ function applyAudiotoolOperations(t, operations) {
       }
 
       safeUpdateField(t, fieldRef, rawOp.value);
+      operationSummaries.push(
+        `updateField(${entity.entityType}.${fieldName} = ${toDisplayString(rawOp.value)})`,
+      );
       continue;
     }
 
     if (opName === "removeEntity") {
       const entity = resolveEntityFromOp(t, aliases, rawOp);
+      if (typeof rawOp.entityAlias === "string" && rawOp.entityAlias.trim()) {
+        removedAliases.add(rawOp.entityAlias.trim());
+      }
+      operationSummaries.push(`removeEntity(${entity.entityType}:${entity.id})`);
       t.remove(entity);
       continue;
     }
@@ -914,6 +959,12 @@ function applyAudiotoolOperations(t, operations) {
       `Unsupported Audiotool operation "${opName}". Supported ops: ensureEntity, createEntity, updateField, removeEntity.`,
     );
   }
+
+  return {
+    aliasUpdates,
+    removedAliases: Array.from(removedAliases),
+    operationSummaries,
+  };
 }
 
 function validateApplyPayload(rawPayload) {
@@ -979,11 +1030,37 @@ async function processAudiotoolApplyRequest(request) {
 
   try {
     const { project, ops } = validateApplyPayload(request?.payload);
+    pushSessionActivity(
+      "apply",
+      `Apply request received (${ops.length} op${ops.length === 1 ? "" : "s"}).`,
+    );
 
     await ensureRequestedProject(project);
+    let applyResult = null;
     await activeDocument.modify((transaction) => {
-      applyAudiotoolOperations(transaction, ops);
+      applyResult = applyAudiotoolOperations(transaction, ops);
     });
+
+    for (const alias of applyResult?.removedAliases || []) {
+      sessionAliasState.delete(alias);
+    }
+    for (const aliasUpdate of applyResult?.aliasUpdates || []) {
+      upsertSessionAlias(
+        aliasUpdate.alias,
+        aliasUpdate.entityType,
+        aliasUpdate.entityId,
+      );
+    }
+    await refreshSessionEntitySummary();
+    lastApplySummary = `${formatClockTime()} — Applied ${ops.length} operation(s) successfully.`;
+    renderSessionDashboard();
+    if (applyResult?.operationSummaries?.length) {
+      pushSessionActivity(
+        "apply",
+        `Applied ${ops.length} operation(s).`,
+        applyResult.operationSummaries.join(" | "),
+      );
+    }
 
     setAudiotoolStatus(
       `Applied ${ops.length} operation(s) to project sync.`,
@@ -998,6 +1075,9 @@ async function processAudiotoolApplyRequest(request) {
     const detail = toDisplayString(error);
     setAudiotoolStatus(`Apply failed: ${detail}`, "error");
     appendConsoleLine("error", detail);
+    lastApplySummary = `${formatClockTime()} — Apply failed.`;
+    pushSessionActivity("error", "Apply request failed.", detail);
+    renderSessionDashboard();
 
     if (activeDocument) {
       await stopActiveDocument(
@@ -1153,8 +1233,9 @@ function runCode() {
   appendConsoleLine("system", `Running with packages: ${packageLabel}`);
   appendConsoleLine(
     "system",
-    "Script runtime is hidden; use project preview and console to inspect results.",
+    "Script runtime is visible in Session preview; use Action log for apply results.",
   );
+  pushSessionActivity("runtime", "Sandbox runtime refreshed.", packageLabel);
 }
 
 window.addEventListener("message", (event) => {
@@ -1170,12 +1251,16 @@ window.addEventListener("message", (event) => {
   if (payload.type === "console") {
     const text = payload.payload.messages.join(" ");
     appendConsoleLine(payload.payload.method, text);
+    if (payload.payload.method === "warn" || payload.payload.method === "error") {
+      pushSessionActivity(payload.payload.method, "Runtime console message.", text);
+    }
     return;
   }
 
   if (payload.type === "runtime-error") {
     const detail = payload.payload.stack || payload.payload.message;
     appendConsoleLine("error", detail);
+    pushSessionActivity("error", "Runtime error in sandbox.", detail);
     return;
   }
 
@@ -1253,54 +1338,13 @@ reloadPreviewButton.addEventListener("click", () => {
     return;
   }
 
-  setProjectPreview(
-    activeProjectStudioUrl,
-    "Preview refreshed.",
-    { mode: preferredPreviewMode, reasonCode: previewFailureReason.EMBED_INIT },
-  );
-  appendConsoleLine(
-    "system",
-    `Preview reloaded in ${preferredPreviewMode} mode.`,
-  );
+  queueAudiotoolTask(async () => {
+    await refreshSessionMetadata();
+    await refreshSessionEntitySummary();
+    appendConsoleLine("system", "Session data refreshed.");
+    pushSessionActivity("system", "Session data refreshed.");
+  });
 });
-
-if (tryEmbedPreviewButton) {
-  tryEmbedPreviewButton.addEventListener("click", () => {
-    if (!activeProjectStudioUrl) {
-      return;
-    }
-
-    preferredPreviewMode = previewMode.EMBED;
-    setProjectPreview(
-      activeProjectStudioUrl,
-      "Manual embedded preview attempt started.",
-      { mode: previewMode.EMBED, reasonCode: previewFailureReason.EMBED_INIT },
-    );
-    appendConsoleLine(
-      "system",
-      "Trying embedded Studio preview (manual request).",
-    );
-  });
-}
-
-if (useSnapshotPreviewButton) {
-  useSnapshotPreviewButton.addEventListener("click", () => {
-    if (!activeProjectStudioUrl) {
-      return;
-    }
-
-    preferredPreviewMode = previewMode.SNAPSHOT;
-    setProjectPreview(
-      activeProjectStudioUrl,
-      "Manual snapshot fallback selected.",
-      {
-        mode: previewMode.SNAPSHOT,
-        reasonCode: previewFailureReason.MANUAL_SNAPSHOT,
-      },
-    );
-    appendConsoleLine("system", "Switched preview to snapshot fallback mode.");
-  });
-}
 
 async function initializeAudiotoolAuth() {
   isInitializingAuth = true;
@@ -1340,11 +1384,12 @@ async function initializeAudiotoolAuth() {
 
 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runCode);
 
-setProjectPreview("", "Log in and connect a project to show the Audiotool workspace here.");
+resetSessionDashboard("waiting for project connection.");
 runCode();
 initializeAudiotoolAuth();
 
 window.addEventListener("beforeunload", () => {
+  clearSessionSubscriptions();
   if (activeDocument) {
     void activeDocument.stop();
   }
