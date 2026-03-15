@@ -60,6 +60,173 @@ const listProjectsButton = document.getElementById("list-projects-btn");
 const createProjectButton = document.getElementById("create-project-btn");
 const runtimeFrame = projectPreview;
 const consoleOutput = document.getElementById("console-output");
+
+const THEME_KEY = "jsplayground-theme";
+const ACCENT_KEY = "jsplayground-accent";
+const FONT_SIZE_KEY = "jsplayground-font-size";
+
+const THEME_OPTIONS = [
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+  { id: "solarized", label: "Solarized" },
+  { id: "high-contrast", label: "High contrast" },
+];
+
+const ACCENT_OPTIONS = [
+  { id: "default", label: "Default" },
+  { id: "muted-purple", label: "Purple" },
+  { id: "indigo", label: "Indigo" },
+  { id: "emerald", label: "Emerald" },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { id: "small", label: "Small", px: 12 },
+  { id: "medium", label: "Medium", px: 14 },
+  { id: "large", label: "Large", px: 16 },
+];
+
+function getMonacoThemeForAppTheme(themeId) {
+  if (themeId === "light" || themeId === "solarized") return "soft-slate-light";
+  return "soft-slate";
+}
+
+function applyTheme(themeId) {
+  const html = document.documentElement;
+  html.classList.remove("theme-light", "theme-dark", "theme-solarized", "theme-high-contrast");
+  const themeClass =
+    themeId === "solarized"
+      ? "theme-solarized"
+      : themeId === "high-contrast"
+        ? "theme-high-contrast"
+        : themeId === "dark"
+          ? "theme-dark"
+          : "theme-light";
+  html.classList.add(themeClass);
+  try {
+    localStorage.setItem(THEME_KEY, themeId);
+  } catch (_) {}
+  try {
+    if (typeof monaco !== "undefined" && monaco.editor) {
+      monaco.editor.setTheme(getMonacoThemeForAppTheme(themeId));
+    }
+  } catch (_) {}
+}
+
+function applyAccent(accentId) {
+  const html = document.documentElement;
+  html.classList.remove("accent-muted-purple", "accent-indigo", "accent-emerald");
+  if (accentId === "muted-purple") html.classList.add("accent-muted-purple");
+  else if (accentId === "indigo") html.classList.add("accent-indigo");
+  else if (accentId === "emerald") html.classList.add("accent-emerald");
+  try {
+    localStorage.setItem(ACCENT_KEY, accentId);
+  } catch (_) {}
+}
+
+function applyFontSize(sizeId) {
+  const html = document.documentElement;
+  html.classList.remove("font-size-small", "font-size-medium", "font-size-large");
+  const opt = FONT_SIZE_OPTIONS.find((o) => o.id === sizeId) || FONT_SIZE_OPTIONS[1];
+  html.classList.add(`font-size-${opt.id}`);
+  try {
+    localStorage.setItem(FONT_SIZE_KEY, opt.id);
+  } catch (_) {}
+  try {
+    if (typeof monaco !== "undefined" && monaco.editor && typeof editor !== "undefined") {
+      editor.updateOptions({ fontSize: opt.px });
+    }
+  } catch (_) {}
+}
+
+function initTheme() {
+  try {
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    const validThemes = THEME_OPTIONS.map((o) => o.id);
+    if (savedTheme && validThemes.includes(savedTheme)) {
+      applyTheme(savedTheme);
+    } else {
+      applyTheme("light");
+    }
+    const savedAccent = localStorage.getItem(ACCENT_KEY);
+    const validAccents = ACCENT_OPTIONS.map((o) => o.id);
+    if (savedAccent && validAccents.includes(savedAccent)) {
+      applyAccent(savedAccent);
+    }
+    const savedFontSize = localStorage.getItem(FONT_SIZE_KEY);
+    const validSizes = FONT_SIZE_OPTIONS.map((o) => o.id);
+    if (savedFontSize && validSizes.includes(savedFontSize)) {
+      applyFontSize(savedFontSize);
+    } else {
+      applyFontSize("medium");
+    }
+    return;
+  } catch (_) {}
+  applyTheme("light");
+  applyFontSize("medium");
+}
+
+initTheme();
+
+function initAppearanceDropdown() {
+  const appearanceBtn = document.getElementById("appearance-btn");
+  const dropdown = document.getElementById("appearance-dropdown");
+  const themeOptionsEl = document.getElementById("appearance-theme-options");
+  const accentOptionsEl = document.getElementById("appearance-accent-options");
+  const fontSizeOptionsEl = document.getElementById("appearance-font-size-options");
+  if (!appearanceBtn || !dropdown || !themeOptionsEl || !accentOptionsEl || !fontSizeOptionsEl) return;
+
+  function renderOptions() {
+    const currentTheme = localStorage.getItem(THEME_KEY) || "light";
+    const currentAccent = localStorage.getItem(ACCENT_KEY) || "default";
+    const currentFontSize = localStorage.getItem(FONT_SIZE_KEY) || "medium";
+    themeOptionsEl.innerHTML = THEME_OPTIONS.map(
+      (opt) =>
+        `<button type="button" class="appearance-option ${opt.id === currentTheme ? "active" : ""}" data-appearance="theme" data-value="${opt.id}">${opt.label}</button>`
+    ).join("");
+    accentOptionsEl.innerHTML = ACCENT_OPTIONS.map(
+      (opt) =>
+        `<button type="button" class="appearance-option ${opt.id === currentAccent ? "active" : ""}" data-appearance="accent" data-value="${opt.id}">${opt.label}</button>`
+    ).join("");
+    fontSizeOptionsEl.innerHTML = FONT_SIZE_OPTIONS.map(
+      (opt) =>
+        `<button type="button" class="appearance-option ${opt.id === currentFontSize ? "active" : ""}" data-appearance="font-size" data-value="${opt.id}">${opt.label}</button>`
+    ).join("");
+  }
+
+  appearanceBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.hidden = !dropdown.hidden;
+    const isOpen = !dropdown.hidden;
+    appearanceBtn.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) renderOptions();
+  });
+
+  dropdown.addEventListener("click", (e) => {
+    const btn = e.target.closest(".appearance-option");
+    if (!btn) return;
+    const kind = btn.getAttribute("data-appearance");
+    const value = btn.getAttribute("data-value");
+    if (kind === "theme") {
+      applyTheme(value);
+    } else if (kind === "accent") {
+      applyAccent(value);
+    } else if (kind === "font-size") {
+      applyFontSize(value);
+    }
+    renderOptions();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (dropdown.hidden) return;
+    if (!dropdown.contains(e.target) && !appearanceBtn.contains(e.target)) {
+      dropdown.hidden = true;
+      appearanceBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
+initAppearanceDropdown();
+
 const sessionProjectMeta = document.getElementById("session-project-meta");
 const sessionEntitySummary = document.getElementById("session-entity-summary");
 const sessionEntityCounts = document.getElementById("session-entity-counts");
@@ -129,13 +296,22 @@ monaco.editor.defineTheme("soft-slate-light", {
   },
 });
 
+const initialThemeId =
+  (document.documentElement.classList.contains("theme-light") || document.documentElement.classList.contains("theme-solarized"))
+    ? "soft-slate-light"
+    : "soft-slate";
+const initialEditorTheme = initialThemeId;
+
+const initialFontSize =
+  (FONT_SIZE_OPTIONS.find((o) => o.id === (localStorage.getItem(FONT_SIZE_KEY) || "medium")) || FONT_SIZE_OPTIONS[1]).px;
+
 const editor = monaco.editor.create(editorElement, {
   value: defaultSource,
   language: "javascript",
-  theme: "soft-slate",
+  theme: initialEditorTheme,
   minimap: { enabled: false },
   automaticLayout: true,
-  fontSize: 14,
+  fontSize: initialFontSize,
   tabSize: 2,
 });
 
@@ -1320,6 +1496,13 @@ function escapeScriptContent(code) {
 function createPreviewDocument(sourceCode, importMap) {
   const safeSource = escapeScriptContent(sourceCode);
   const safeImportMap = escapeScriptContent(JSON.stringify(importMap, null, 2));
+  const isDark =
+    document.documentElement.classList.contains("theme-dark") ||
+    document.documentElement.classList.contains("theme-high-contrast") ||
+    (!document.documentElement.classList.contains("theme-light") &&
+      !document.documentElement.classList.contains("theme-solarized"));
+  const bodyBg = isDark ? "#0f1724" : "#f5f0ea";
+  const bodyColor = isDark ? "#E6EEF8" : "#2b2b25";
 
   return `<!doctype html>
 <html lang="en">
@@ -1331,8 +1514,8 @@ function createPreviewDocument(sourceCode, importMap) {
         margin: 0;
         padding: 16px;
         font-family: Inter, system-ui, -apple-system, sans-serif;
-        background: #0a142b;
-        color: #E6EEF8;
+        background: ${bodyBg};
+        color: ${bodyColor};
       }
 
       #app {
