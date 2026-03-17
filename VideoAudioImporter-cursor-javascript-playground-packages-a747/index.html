@@ -114,7 +114,7 @@
         <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize editor and preview"></div>
 
         <section class="pane preview-pane">
-          <h2>Session preview</h2>
+          <h2>Application preview</h2>
           <p class="subtle preview-hint">
             This pane shows the sandboxed JavaScript app state and apply activity.
             The full Audiotool Studio opens in a separate tab.
@@ -127,11 +127,7 @@
           <p id="preview-mode-label" class="subtle preview-mode-label">
             Session mode: waiting for project connection.
           </p>
-          <iframe
-            id="project-preview"
-            title="Sandbox runtime preview"
-            sandbox="allow-scripts"
-          ></iframe>
+          <div id="preview-panel" class="preview-panel" role="region" aria-label="Preview panel"></div>
         </section>
       </main>
 

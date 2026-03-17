@@ -4,6 +4,7 @@ import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { createAudiotoolClient, getLoginStatus } from "@audiotool/nexus";
+import { PreviewPanel } from "./PreviewPanel.js";
 
 self.MonacoEnvironment = {
   getWorker(_moduleId, label) {
@@ -55,10 +56,9 @@ const reloadPreviewButton = document.getElementById("reload-preview-btn");
 const previewModeLabel = document.getElementById("preview-mode-label");
 const audiotoolStatusElement = document.getElementById("audiotool-status");
 const redirectUrlElement = document.getElementById("redirect-url");
-const projectPreview = document.getElementById("project-preview");
+const previewPanelElement = document.getElementById("preview-panel");
 const listProjectsButton = document.getElementById("list-projects-btn");
 const createProjectButton = document.getElementById("create-project-btn");
-const runtimeFrame = projectPreview;
 const consoleOutput = document.getElementById("console-output");
 
 const THEME_KEY = "jsplayground-theme";
@@ -331,18 +331,19 @@ function clearConsole() {
 const samples = [
   {
     id: "ensure-tonematrix",
-    title: "Ensure ToneMatrix",
-    description: "Create or update a tonematrix entity (alias: tm) and set a default position.",
+    title: "Create Tone Matrix",
+    description: "Creates a ToneMatrix (alias: tm) and sets a default position.",
     ops: [
       { op: "ensureEntity", entityType: "tonematrix", alias: "tm" },
       { op: "updateField", entityAlias: "tm", field: "positionX", value: 900 },
       { op: "updateField", entityAlias: "tm", field: "positionY", value: 600 },
     ],
+    code: `// Create Tone Matrix\nawait window.audiotool.apply({\n  ops: [\n    { op: \"ensureEntity\", entityType: \"tonematrix\", alias: \"tm\" },\n    { op: \"updateField\", entityAlias: \"tm\", field: \"positionX\", value: 900 },\n    { op: \"updateField\", entityAlias: \"tm\", field: \"positionY\", value: 600 },\n  ],\n});\n`,
   },
   {
     id: "add-synth",
-    title: "Add Synth",
-    description: "Create a synth instrument (alias: synth1) and position it in the studio.",
+    title: "Add Device",
+    description: "Adds a synth device (alias: synth1) and sets a preset + position.",
     ops: [
       { op: "ensureEntity", entityType: "synth", alias: "synth1" },
       { op: "updateField", entityAlias: "synth1", field: "preset", value: "default-saw" },
@@ -350,6 +351,17 @@ const samples = [
       { op: "updateField", entityAlias: "synth1", field: "positionY", value: 420 },
     ],
     code: `// Synth sample: synth1\nawait window.audiotool.apply({ ops: [\n  { op: 'ensureEntity', entityType: 'synth', alias: 'synth1' },\n  { op: 'updateField', entityAlias: 'synth1', field: 'preset', value: 'default-saw' },\n] });\n`,
+  },
+  {
+    id: "connect-parameter-slider",
+    title: "Connect Parameter to Slider",
+    description:
+      "Updates a numeric parameter, then adjust it in the Preview panel via a slider.",
+    ops: [
+      { op: "ensureEntity", entityType: "tonematrix", alias: "tm" },
+      { op: "updateField", entityAlias: "tm", field: "positionX", value: 600 },
+    ],
+    code: `// Connect Parameter to Slider (Preview)\n// Run once. Then use the slider in Preview: tm.positionX\nawait window.audiotool.apply({\n  ops: [\n    { op: \"ensureEntity\", entityType: \"tonematrix\", alias: \"tm\" },\n    { op: \"updateField\", entityAlias: \"tm\", field: \"positionX\", value: 600 },\n  ],\n});\n`,
   },
   {
     id: "add-drum-machine",
@@ -361,6 +373,7 @@ const samples = [
       { op: "updateField", entityAlias: "drum1", field: "positionX", value: 600 },
       { op: "updateField", entityAlias: "drum1", field: "positionY", value: 480 },
     ],
+    code: `// Add Drum Machine\nawait window.audiotool.apply({\n  ops: [\n    { op: "ensureEntity", entityType: "drumMachine", alias: "drum1" },\n    { op: "updateField", entityAlias: "drum1", field: "kit", value: "acoustic-kit" },\n    { op: "updateField", entityAlias: "drum1", field: "positionX", value: 600 },\n    { op: "updateField", entityAlias: "drum1", field: "positionY", value: 480 },\n  ],\n});\n`,
   },
   {
     id: "add-bass",
@@ -372,6 +385,7 @@ const samples = [
       { op: "updateField", entityAlias: "bass1", field: "positionX", value: 1000 },
       { op: "updateField", entityAlias: "bass1", field: "positionY", value: 500 },
     ],
+    code: `// Add Bass\nawait window.audiotool.apply({\n  ops: [\n    { op: "ensureEntity", entityType: "bass", alias: "bass1" },\n    { op: "updateField", entityAlias: "bass1", field: "preset", value: "deep-sub" },\n    { op: "updateField", entityAlias: "bass1", field: "positionX", value: 1000 },\n    { op: "updateField", entityAlias: "bass1", field: "positionY", value: 500 },\n  ],\n});\n`,
   },
   {
     id: "populate-tonematrix-pattern",
@@ -453,27 +467,28 @@ function openSamplesModal() {
     }
 
     const applyBtn = document.createElement("button");
-    applyBtn.textContent = "Apply";
+    applyBtn.textContent = "Run";
     applyBtn.className = "btn-primary";
     applyBtn.addEventListener("click", async () => {
       try {
-        const ops = s.opsGenerator ? s.opsGenerator() : s.ops;
-        appendConsoleLine("info", `Applying sample: ${s.title}`);
-        // If sample has code, load it into the editor before applying so user sees it
+        appendConsoleLine("info", `Running sample: ${s.title}`);
+        // Load sample into the editor so user sees it (and can edit)
         if (s.code && typeof editor?.setValue === "function") {
           editor.setValue(s.code);
         }
-        if (!window.audiotool || typeof window.audiotool.apply !== "function") {
-          appendConsoleLine("warn", "No Audiotool connection available. Connect a project to apply sample actions.");
-          return;
+        // For samples that don't have explicit code, run their ops via the local preview API.
+        if (!s.code) {
+          const ops = s.opsGenerator ? s.opsGenerator() : s.ops;
+          await window.audiotool.apply({ ops });
+        } else {
+        await runCode();
         }
-        const res = await window.audiotool.apply({ ops });
-        appendConsoleLine("ok", `Sample applied: ${s.title}`);
-        pushSessionActivity("info", `Applied sample: ${s.title}`);
+        appendConsoleLine("ok", `Sample ran: ${s.title}`);
+        pushSessionActivity("info", `Ran sample: ${s.title}`);
         // close modal
         document.body.removeChild(overlay);
       } catch (err) {
-        appendConsoleLine("error", `Failed to apply sample: ${err?.message || err}`);
+        appendConsoleLine("error", `Failed to run sample: ${err?.message || err}`);
       }
     });
     actions.appendChild(applyBtn);
@@ -589,6 +604,68 @@ function formatClockTime(date = new Date()) {
     minute: "2-digit",
     second: "2-digit",
   }).format(date);
+}
+
+function resolveImportSpecifier(specifier, importMap) {
+  if (!importMap || !importMap.imports) return specifier;
+  const imports = importMap.imports;
+  if (imports[specifier]) return imports[specifier];
+  const prefixes = Object.keys(imports).filter((k) => k.endsWith("/") && specifier.startsWith(k));
+  prefixes.sort((a, b) => b.length - a.length);
+  const match = prefixes[0];
+  if (match) {
+    return `${imports[match]}${specifier.slice(match.length)}`;
+  }
+  return specifier;
+}
+
+function rewriteImportsToUrls(sourceCode, importMap) {
+  const rewriters = [
+    [/(\bfrom\s+)(["'])([^"']+)\2/g, (_m, prefix, q, spec) => `${prefix}${q}${resolveImportSpecifier(spec, importMap)}${q}`],
+    [/(\bimport\s*\(\s*)(["'])([^"']+)\2(\s*\))/g, (_m, prefix, q, spec, suffix) => `${prefix}${q}${resolveImportSpecifier(spec, importMap)}${q}${suffix}`],
+    [/(\bexport\s+[^;]*?\bfrom\s+)(["'])([^"']+)\2/g, (_m, prefix, q, spec) => `${prefix}${q}${resolveImportSpecifier(spec, importMap)}${q}`],
+  ];
+
+  let out = sourceCode;
+  for (const [re, fn] of rewriters) {
+    out = out.replace(re, fn);
+  }
+  return out;
+}
+
+async function runUserModule({ sourceCode, importMap, audiotoolApi, onConsole }) {
+  const rewritten = rewriteImportsToUrls(sourceCode, importMap);
+  const wrapped = `
+const __prevConsole = globalThis.console;
+const __onConsole = globalThis.__onConsole;
+const __audiotool = globalThis.__audiotool;
+globalThis.console = {
+  ...__prevConsole,
+  log: (...a) => { __onConsole("log", a); __prevConsole.log(...a); },
+  info: (...a) => { __onConsole("info", a); __prevConsole.info(...a); },
+  warn: (...a) => { __onConsole("warn", a); __prevConsole.warn(...a); },
+  error: (...a) => { __onConsole("error", a); __prevConsole.error(...a); },
+};
+globalThis.audiotool = __audiotool;
+try {
+${rewritten}
+} finally {
+  globalThis.console = __prevConsole;
+}
+`;
+  globalThis.__onConsole = onConsole;
+  globalThis.__audiotool = audiotoolApi;
+  const blob = new Blob([wrapped], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  try {
+    return await import(/* @vite-ignore */ url);
+  } finally {
+    URL.revokeObjectURL(url);
+    try {
+      delete globalThis.__onConsole;
+      delete globalThis.__audiotool;
+    } catch (_) {}
+  }
 }
 
 function addSessionSubscription(terminable) {
@@ -1399,32 +1476,9 @@ async function ensureRequestedProject(requestedProject) {
   }
 }
 
-function postAudiotoolResult(requestId, response) {
-  const target = runtimeFrame.contentWindow;
-  if (!target) {
-    return;
-  }
-
-  target.postMessage(
-    {
-      source: "audiotool-host",
-      type: "audiotool.result",
-      requestId,
-      ...response,
-    },
-    "*",
-  );
-}
+// iframe-free runner: no postMessage result channel
 
 async function processAudiotoolApplyRequest(request) {
-  const requestId =
-    typeof request?.requestId === "string" ? request.requestId.trim() : "";
-  if (!requestId) {
-    appendConsoleLine("error", "Ignored audiotool.apply message without requestId.");
-    return;
-  }
-
-
   try {
     const { project, ops } = validateApplyPayload(request?.payload);
     pushSessionActivity(
@@ -1464,10 +1518,6 @@ async function processAudiotoolApplyRequest(request) {
       "ok",
     );
     appendConsoleLine("system", `Audiotool apply succeeded (${ops.length} ops).`);
-    postAudiotoolResult(requestId, {
-      ok: true,
-      payload: { applied: ops.length, project: activeProject },
-    });
   } catch (error) {
     const detail = toDisplayString(error);
     setAudiotoolStatus(`Apply failed: ${detail}`, "error");
@@ -1482,151 +1532,95 @@ async function processAudiotoolApplyRequest(request) {
       );
     }
 
-    postAudiotoolResult(requestId, {
-      ok: false,
-      error: detail,
-    });
   }
 }
 
-function escapeScriptContent(code) {
-  return code.replaceAll("</script>", "<\\/script>");
+function getCurrentThemeId() {
+  const html = document.documentElement;
+  if (html.classList.contains("theme-high-contrast")) return "high-contrast";
+  if (html.classList.contains("theme-solarized")) return "solarized";
+  if (html.classList.contains("theme-dark")) return "dark";
+  return "light";
 }
 
-function createPreviewDocument(sourceCode, importMap) {
-  const safeSource = escapeScriptContent(sourceCode);
-  const safeImportMap = escapeScriptContent(JSON.stringify(importMap, null, 2));
-  const isDark =
-    document.documentElement.classList.contains("theme-dark") ||
-    document.documentElement.classList.contains("theme-high-contrast") ||
-    (!document.documentElement.classList.contains("theme-light") &&
-      !document.documentElement.classList.contains("theme-solarized"));
-  const bodyBg = isDark ? "#0f1724" : "#f5f0ea";
-  const bodyColor = isDark ? "#E6EEF8" : "#2b2b25";
-
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      body {
-        margin: 0;
-        padding: 16px;
-        font-family: Inter, system-ui, -apple-system, sans-serif;
-        background: ${bodyBg};
-        color: ${bodyColor};
-      }
-
-      #app {
-        min-height: 40px;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script>
-      const toStringValue = (value) => {
-        if (value instanceof Error) {
-          return value.stack || value.message;
-        }
-
-        if (typeof value === "string") {
-          return value;
-        }
-
-        try {
-          return JSON.stringify(value, null, 2);
-        } catch {
-          return String(value);
-        }
-      };
-
-      const send = (type, payload) => {
-        parent.postMessage({ source: "monaco-playground", type, payload }, "*");
-      };
-
-      const pendingAudiotoolRequests = new Map();
-
-      ["log", "info", "warn", "error"].forEach((method) => {
-        const original = console[method].bind(console);
-        console[method] = (...args) => {
-          send("console", {
-            method,
-            messages: args.map((arg) => toStringValue(arg)),
-          });
-          original(...args);
-        };
+const previewPanel = new PreviewPanel(previewPanelElement, {
+  onParameterChange: ({ entityAlias, field, value }) => {
+    // Update the simulated preview immediately; optionally forward to SDK if connected.
+    previewPanel.applyOps([{ op: "updateField", entityAlias, field, value }]);
+    queueAudiotoolTask(async () => {
+      if (!activeDocument) return;
+      await processAudiotoolApplyRequest({
+        payload: { project: activeProject, ops: [{ op: "updateField", entityAlias, field, value }] },
       });
+    }).catch(() => {});
+  },
+});
+previewPanel.render();
 
-      window.addEventListener("error", (event) => {
-        send("runtime-error", {
-          message: event.message,
-          stack: event.error ? event.error.stack : "",
-        });
+// Provide a default local audiotool shim so Samples can run without clicking Run.
+window.audiotool = {
+  apply: async (payload) => {
+    const { ops } = validateApplyPayload(payload);
+    previewPanel.applyOps(ops);
+    if (loginStatus?.loggedIn) {
+      await queueAudiotoolTask(async () => {
+        await ensureRequestedProject(payload?.project);
+        await processAudiotoolApplyRequest({ payload: { project: payload?.project, ops } });
       });
+    }
+    return { applied: ops.length, simulated: !loginStatus?.loggedIn };
+  },
+};
 
-      window.addEventListener("unhandledrejection", (event) => {
-        send("runtime-error", {
-          message: "Unhandled promise rejection",
-          stack: toStringValue(event.reason),
-        });
-      });
-
-      window.addEventListener("message", (event) => {
-        const message = event.data;
-        if (!message || message.source !== "audiotool-host") {
-          return;
-        }
-        if (message.type !== "audiotool.result") {
-          return;
-        }
-
-        const pending = pendingAudiotoolRequests.get(message.requestId);
-        if (!pending) {
-          return;
-        }
-
-        pendingAudiotoolRequests.delete(message.requestId);
-
-        if (message.ok) {
-          pending.resolve(message.payload);
-        } else {
-          pending.reject(new Error(message.error || "Audiotool apply failed."));
-        }
-      });
-
-      window.audiotool = {
-        apply(payload) {
-          return new Promise((resolve, reject) => {
-            const requestId =
-              globalThis.crypto?.randomUUID?.() ||
-              \`req-\${Date.now()}-\${Math.random().toString(16).slice(2)}\`;
-
-            pendingAudiotoolRequests.set(requestId, { resolve, reject });
-            send("audiotool.apply", { requestId, payload });
-          });
-        },
-      };
-    </script>
-    <script type="importmap">
-${safeImportMap}
-    </script>
-    <script type="module">
-${safeSource}
-    </script>
-  </body>
-</html>`;
-}
-
-function runCode() {
+async function runCode() {
   clearConsole();
+  previewPanel.reset();
+
   const packageList = parsePackageInput(packageInput.value);
   const importMap = buildImportMap(packageList);
   const sourceCode = editor.getValue();
-  const html = createPreviewDocument(sourceCode, importMap);
 
-  runtimeFrame.srcdoc = html;
+  const capturedOps = [];
+  const capturedConsole = [];
+
+  const audiotoolApi = {
+    async apply(payload) {
+      const { project, ops } = validateApplyPayload(payload);
+      capturedOps.push(...ops);
+      previewPanel.applyOps(ops);
+
+      // If logged in + connected, forward to real SDK. If not, simulate only.
+      if (loginStatus?.loggedIn) {
+        try {
+          await queueAudiotoolTask(async () => {
+            await ensureRequestedProject(project);
+            await processAudiotoolApplyRequest({ payload: { project, ops } });
+          });
+        } catch (err) {
+          appendConsoleLine("error", toDisplayString(err));
+          throw err;
+        }
+      }
+      return { applied: ops.length, simulated: !loginStatus?.loggedIn };
+    },
+  };
+
+  const onConsole = (level, args) => {
+    const text = args.map((a) => toDisplayString(a)).join(" ");
+    capturedConsole.push({ level, text });
+    appendConsoleLine(level, text);
+    if (level === "warn" || level === "error") {
+      pushSessionActivity(level, "Runtime console message.", text);
+    }
+  };
+
+  try {
+    await runUserModule({ sourceCode, importMap, audiotoolApi, onConsole });
+  } catch (err) {
+    const detail = toDisplayString(err);
+    appendConsoleLine("error", detail);
+    pushSessionActivity("error", "Runtime error.", detail);
+  }
 
   const packageLabel = packageList.length
     ? packageList
@@ -1637,7 +1631,7 @@ function runCode() {
   appendConsoleLine("system", `Running with packages: ${packageLabel}`);
   appendConsoleLine(
     "system",
-    "Script runtime is visible in Session preview; use Action log for apply results.",
+    `Preview updated (${capturedOps.length} captured op${capturedOps.length === 1 ? "" : "s"}). Theme: ${getCurrentThemeId()}.`,
   );
   pushSessionActivity("runtime", "Sandbox runtime refreshed.", packageLabel);
 }
@@ -1920,41 +1914,6 @@ createProjectButton?.addEventListener("click", () => {
   };
 
   submit.addEventListener("click", onSubmit, { once: true });
-});
-
-window.addEventListener("message", (event) => {
-  if (event.source !== runtimeFrame.contentWindow) {
-    return;
-  }
-
-  const payload = event.data;
-  if (!payload || payload.source !== "monaco-playground") {
-    return;
-  }
-
-  if (payload.type === "console") {
-    const text = payload.payload.messages.join(" ");
-    appendConsoleLine(payload.payload.method, text);
-    if (payload.payload.method === "warn" || payload.payload.method === "error") {
-      pushSessionActivity(payload.payload.method, "Runtime console message.", text);
-    }
-    return;
-  }
-
-  if (payload.type === "runtime-error") {
-    const detail = payload.payload.stack || payload.payload.message;
-    appendConsoleLine("error", detail);
-    pushSessionActivity("error", "Runtime error in sandbox.", detail);
-    return;
-  }
-
-  if (payload.type === "audiotool.apply") {
-    queueAudiotoolTask(() => processAudiotoolApplyRequest(payload.payload)).catch(
-      (error) => {
-        appendConsoleLine("error", toDisplayString(error));
-      },
-    );
-  }
 });
 
 runButton.addEventListener("click", runCode);
