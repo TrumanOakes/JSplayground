@@ -1,32 +1,40 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="theme-light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Monaco Playground Sandbox</title>
-    <script type="module" crossorigin src="/JSplayground/assets/index-CvtZIsPI.js"></script>
-    <link rel="stylesheet" crossorigin href="/JSplayground/assets/index-CEMWOmMi.css">
+    <script type="module" crossorigin src="/JSplayground/assets/index-B8m0f_DA.js"></script>
+    <link rel="stylesheet" crossorigin href="/JSplayground/assets/index-D4cKG2PH.css">
   </head>
   <body>
     <div class="layout">
-      <header class="toolbar">
-        <div class="title">
-          <h1>Monaco JS Playground</h1>
-          <p>
-            Run JavaScript in an isolated iframe, then sync whitelisted changes
-            into an Audiotool project.
-          </p>
+      <header class="topbar" id="topbar">
+        <div class="topbar-inner">
+          <div class="logo" aria-hidden="true">
+            <span class="logo-js">JS</span>
+          </div>
+          <div class="topbar-title">
+            <h1><span class="title-brand">JS</span> Playground</h1>
+            <p class="topbar-subtitle">Run code in an isolated sandbox · Sync to Audiotool</p>
+          </div>
         </div>
+      </header>
+
+      <header class="toolbar">
         <section class="control-card">
           <h2>Audiotool connection</h2>
-          <p class="subtle">
-            Client ID:
-            <code>379f8d67-b211-43b2-8a9d-9553aa8aad32</code>
-          </p>
-          <p class="subtle">
-            Redirect URL:
-            <code id="redirect-url"></code>
-          </p>
+          <details class="audiotool-dev-details">
+            <summary>Client ID &amp; Redirect URL</summary>
+            <p class="subtle">
+              Client ID:
+              <code>379f8d67-b211-43b2-8a9d-9553aa8aad32</code>
+            </p>
+            <p class="subtle">
+              Redirect URL:
+              <code id="redirect-url"></code>
+            </p>
+          </details>
 
           <label for="project-input">Project URL or UUID</label>
           <input
@@ -37,22 +45,261 @@
           />
           <div class="buttons">
             <button id="auth-btn" type="button">Login</button>
-            <button id="connect-btn" type="button" disabled>
+            <button id="list-projects-btn" type="button" class="btn-secondary">
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>List Projects</span>
+            </button>
+            <button id="create-project-btn" type="button" class="btn-secondary">
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Create Project</span>
+            </button>
+            <button id="connect-btn" type="button" class="btn-primary" disabled>
               Connect Project
             </button>
-            <button id="disconnect-btn" type="button" disabled>Disconnect</button>
-            <button id="open-project-btn" type="button" disabled>
-              Open Project Tab
+            <button id="disconnect-btn" type="button" class="btn-secondary" disabled>
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M18 8a6 6 0 10-8.48 8.48" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 3v5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Disconnect</span>
+            </button>
+            <button id="open-project-btn" type="button" class="btn-secondary" disabled>
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M14 3h7v7M21 3L10 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Open Project Tab</span>
             </button>
           </div>
           <p id="audiotool-status" class="status-line">Auth not initialized.</p>
         </section>
+        <div class="toolbar-appearance">
+          <button
+            type="button"
+            id="appearance-btn"
+            class="appearance-btn"
+            title="Change appearance (theme & accent)"
+            aria-label="Appearance"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <svg class="appearance-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <span class="appearance-label">Appearance</span>
+          </button>
+          <div id="appearance-dropdown" class="appearance-dropdown" role="dialog" aria-label="Appearance options" hidden>
+            <div class="appearance-dropdown-inner">
+              <p class="appearance-dropdown-title">Theme</p>
+              <div class="appearance-options" id="appearance-theme-options">
+                <button
+                  type="button"
+                  class="appearance-option active"
+                  data-appearance="theme"
+                  data-value="light"
+                >
+                  Light
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="theme"
+                  data-value="dark"
+                >
+                  Dark
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="theme"
+                  data-value="solarized"
+                >
+                  Solarized
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="theme"
+                  data-value="high-contrast"
+                >
+                  High contrast
+                </button>
+              </div>
+              <p class="appearance-dropdown-title">Accent</p>
+              <div class="appearance-options" id="appearance-accent-options">
+                <button
+                  type="button"
+                  class="appearance-option active"
+                  data-appearance="accent"
+                  data-value="default"
+                >
+                  Default
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="accent"
+                  data-value="muted-purple"
+                >
+                  Purple
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="accent"
+                  data-value="indigo"
+                >
+                  Indigo
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="accent"
+                  data-value="emerald"
+                >
+                  Emerald
+                </button>
+              </div>
+              <p class="appearance-dropdown-title">Editor text size</p>
+              <div class="appearance-options" id="appearance-editor-font-size-options">
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="editor-font-size"
+                  data-value="small"
+                >
+                  Small
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option active"
+                  data-appearance="editor-font-size"
+                  data-value="medium"
+                >
+                  Medium
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="editor-font-size"
+                  data-value="large"
+                >
+                  Large
+                </button>
+              </div>
+              <p class="appearance-dropdown-title">Interface size</p>
+              <div class="appearance-options" id="appearance-ui-font-size-options">
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="ui-font-size"
+                  data-value="small"
+                >
+                  Small
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option active"
+                  data-appearance="ui-font-size"
+                  data-value="medium"
+                >
+                  Medium
+                </button>
+                <button
+                  type="button"
+                  class="appearance-option"
+                  data-appearance="ui-font-size"
+                  data-value="large"
+                >
+                  Large
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </header>
 
       <main class="panes">
         <section class="pane editor-pane">
           <h2>Editor</h2>
-          <div id="editor"></div>
+          <div class="editor-workbench">
+            <div class="editor-tab-bar">
+              <div class="editor-tab-inline-group">
+                <div class="editor-tab-buttons" role="tablist" aria-label="Editor source">
+                  <button
+                    type="button"
+                    class="editor-tab"
+                    role="tab"
+                    id="tab-html"
+                    aria-selected="false"
+                    aria-controls="editor-html"
+                    data-editor-tab="html"
+                  >
+                    HTML
+                  </button>
+                  <button
+                    type="button"
+                    class="editor-tab"
+                    role="tab"
+                    id="tab-css"
+                    aria-selected="false"
+                    aria-controls="editor-css"
+                    data-editor-tab="css"
+                  >
+                    CSS
+                  </button>
+                  <button
+                    type="button"
+                    class="editor-tab active"
+                    role="tab"
+                    id="tab-js"
+                    aria-selected="true"
+                    aria-controls="editor-js"
+                    data-editor-tab="js"
+                  >
+                    JavaScript
+                  </button>
+                </div>
+                <button
+                  id="sdk-view-toggle"
+                  type="button"
+                  class="editor-tab sdk-view-toggle"
+                  aria-pressed="false"
+                  aria-label="Show SDK simulation instead of live preview"
+                  title="SDK simulation (Tone Matrix &amp; apply output)"
+                >
+                  SDK
+                </button>
+                <button
+                  id="note-editor-open"
+                  type="button"
+                  class="editor-tab note-editor-open-btn"
+                  aria-label="Load note editor sample"
+                  title="Load the piano-roll note editor into HTML, CSS, and JavaScript"
+                >
+                  Note editor
+                </button>
+              </div>
+            </div>
+            <div class="editor-tab-panels">
+              <div
+                id="editor-html"
+                class="editor-panel"
+                role="tabpanel"
+                aria-labelledby="tab-html"
+                hidden
+              ></div>
+              <div
+                id="editor-css"
+                class="editor-panel"
+                role="tabpanel"
+                aria-labelledby="tab-css"
+                hidden
+              ></div>
+              <div
+                id="editor-js"
+                class="editor-panel active"
+                role="tabpanel"
+                aria-labelledby="tab-js"
+              ></div>
+            </div>
+          </div>
+
           <section class="control-card controls-under-editor">
             <h2>Playground controls</h2>
             <label for="packages">Packages (comma-separated)</label>
@@ -66,29 +313,57 @@
             <div class="buttons">
               <button id="run-btn" type="button">Run</button>
               <button id="reset-btn" type="button">Reset</button>
+              <button id="samples-btn" type="button" class="btn-secondary">
+                Samples
+              </button>
             </div>
           </section>
         </section>
 
-        <section class="pane preview-pane">
-          <h2>Session preview</h2>
-          <p class="subtle preview-hint">
-            This pane shows the sandboxed JavaScript app state and apply activity.
-            The full Audiotool Studio opens in a separate tab.
+        <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize editor and preview"></div>
+
+        <section id="preview-pane" class="pane preview-pane preview-pane--live" data-preview-surface="live">
+          <h2>Application preview</h2>
+          <p id="preview-surface-indicator" class="preview-surface-indicator" role="status" aria-live="polite">
+            Live preview · HTML, CSS, and JavaScript
           </p>
-          <div class="buttons preview-buttons">
-            <button id="reload-preview-btn" type="button" disabled>
-              Refresh Data
-            </button>
+
+          <div id="preview-live-stack" class="preview-stack preview-stack--live">
+            <p class="subtle preview-hint preview-hint-live">
+              <strong>Live preview</strong> — HTML, CSS, and JavaScript from the editor run together in a sandboxed
+              iframe. Console output appears in the Console section below.
+            </p>
+            <div class="preview-live-wrap">
+              <iframe
+                id="preview-frame"
+                class="preview-frame"
+                title="Live preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+              ></iframe>
+            </div>
           </div>
-          <p id="preview-mode-label" class="subtle preview-mode-label">
-            Session mode: waiting for project connection.
-          </p>
-          <iframe
-            id="project-preview"
-            title="Sandbox runtime preview"
-            sandbox="allow-scripts"
-          ></iframe>
+
+          <div id="preview-sdk-stack" class="preview-stack preview-stack--sdk">
+            <h3 class="preview-subheading">Audiotool simulation</h3>
+            <p class="subtle preview-hint">
+              Visualizes SDK actions from your code (e.g. Tone Matrix). The full Audiotool Studio opens in a separate tab.
+            </p>
+            <div class="buttons preview-buttons">
+              <button id="reload-preview-btn" type="button" disabled>
+                Refresh Data
+              </button>
+            </div>
+            <p id="preview-mode-label" class="subtle preview-mode-label">
+              Session mode: waiting for project connection.
+            </p>
+            <div id="preview-panel" class="preview-panel" role="region" aria-label="SDK simulation"></div>
+          </div>
+        </section>
+      </main>
+
+      <details class="console-section" id="session-info-details">
+        <summary>Session Info</summary>
+        <div style="display: grid; gap: 10px; margin-top: 8px;">
           <section class="session-grid">
             <article class="control-card">
               <h2>Project session</h2>
@@ -108,12 +383,13 @@
               <p id="session-last-apply" class="subtle"></p>
             </article>
           </section>
+
           <section class="control-card">
             <h2>Action log</h2>
             <ul id="session-activity-log" class="session-list activity-list"></ul>
           </section>
-        </section>
-      </main>
+        </div>
+      </details>
 
       <details class="console-section">
         <summary>Console</summary>
