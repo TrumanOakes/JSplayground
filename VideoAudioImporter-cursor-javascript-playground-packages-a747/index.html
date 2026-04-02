@@ -1,125 +1,794 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Monaco Playground Sandbox</title>
-  </head>
-  <body>
-    <div class="layout">
-      <header class="toolbar">
-        <div class="title">
-          <h1>Monaco JS Playground</h1>
-          <p>
-            Run JavaScript in an isolated iframe, then sync whitelisted changes
-            into an Audiotool project.
-          </p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audiotool SDK Playground</title>
+  <style>
+    /* 1. Modern Color Palette & Typography */
+    :root {
+      /* Cream / warm light theme */
+      --bg-base: #fbf6ea;    /* cream */
+      --bg-panel: #fffaf0;   /* warm paper */
+      --bg-header: #f3ead6;  /* slightly darker cream */
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --accent-green: #059669;
+      --accent-green-hover: #047857;
+      --text-main: #1f2937;  /* slate-800 */
+      --text-muted: #6b7280; /* slate-500 */
+      --border-color: rgba(31, 41, 55, 0.14);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      background: var(--bg-base);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    /* Custom Scrollbars for a sleek look */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: rgba(31,41,55,0.28); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(31,41,55,0.38); }
+
+    /* 2. Top Navigation Bar */
+    #title-bar {
+      padding: 14px 20px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 11;
+    }
+
+    #title-bar .title {
+      font-weight: 900;
+      letter-spacing: -0.8px;
+      font-size: 28px;
+      user-select: none;
+      white-space: nowrap;
+      margin: 0;
+      line-height: 1;
+    }
+    #title-bar .title .title-js { color: var(--accent-blue); }
+    #title-bar .title .title-rest { color: var(--text-main); }
+
+    #top-bar {
+      padding: 12px 20px;
+      background: var(--bg-header);
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+    }
+
+    .header-groups {
+      display: flex;
+      gap: 14px;
+      align-items: stretch;
+      width: 100%;
+    }
+
+    .toolbar-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.45);
+      min-width: 220px;
+    }
+
+    .toolbar-group-wide { flex: 1 1 auto; min-width: 360px; }
+
+    .toolbar-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      line-height: 1;
+      user-select: none;
+    }
+
+    .toolbar-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .mode-badge {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    input[type="text"], select {
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.85);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--accent-blue); }
+    input[type="text"] { width: 260px; }
+
+    /* Modern Buttons */
+    button {
+      background: var(--accent-blue);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:hover { background: var(--accent-blue-hover); transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* Button hierarchy */
+    #auth-btn,
+    #list-projects-btn,
+    #open-project-btn {
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    /* Extra specificity so button base color never "wins" */
+    #top-bar #auth-btn,
+    #top-bar #list-projects-btn,
+    #top-bar #open-project-btn {
+      color: var(--text-main);
+    }
+    #auth-btn:hover,
+    #list-projects-btn:hover,
+    #open-project-btn:hover {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: rgba(31, 41, 55, 0.22);
+    }
+    #connect-btn {
+      background: var(--accent-blue);
+      color: white;
+    }
+    #connect-btn:hover { background: var(--accent-blue-hover); }
+
+    /* Focus visibility (keyboard accessibility) */
+    :focus { outline: none; }
+    :focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 2px;
+    }
+    button:focus-visible,
+    input[type="text"]:focus-visible,
+    select:focus-visible,
+    .project-row:focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 2px;
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; scroll-behavior: auto !important; }
+      button:hover { transform: none; }
+    }
+
+    button.action-btn {
+      background: var(--accent-green);
+      color: white;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+    button.action-btn:hover {
+      background: var(--accent-green-hover);
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    }
+
+    #auth-status {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    /* 3. Main Workspace Layout */
+    #main-content { display: flex; flex-grow: 1; height: calc(100vh - 55px - 52px); }
+
+    #left-pane { flex: 1 1 0; min-width: 320px; display: flex; flex-direction: column; background: var(--bg-panel); }
+    #right-pane { flex: 1 1 0; min-width: 320px; display: flex; flex-direction: column; background: var(--bg-base); }
+
+    #splitter {
+      width: 10px;
+      cursor: col-resize;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent);
+      border-left: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      position: relative;
+    }
+    #splitter::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 3px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+    }
+    #splitter:focus-visible {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: -2px;
+    }
+
+    /* Editor Toolbar */
+    .toolbar {
+      padding: 10px 15px;
+      background: transparent;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .toolbar h3 { margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Make editor header match pane headers */
+    .toolbar.pane-header {
+      padding: 8px 15px;
+      background: var(--bg-header);
+      border-top: none;
+      border-radius: 0;
+      gap: 10px;
+      flex-wrap: nowrap;
+    }
+
+    .toolbar.pane-header h3 {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding-left: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .editor-controls {
+      flex: 0 1 auto;
+      min-width: 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+      overflow-x: auto;
+      max-width: 100%;
+      padding-bottom: 2px;
+    }
+
+    .editor-controls::-webkit-scrollbar { height: 6px; }
+
+    #editor-js { flex-grow: 1; }
+
+    /* (removed editor bottom bar; controls live in header) */
+
+    /* Quick Insert toolbar */
+    #quick-insert-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.55);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    #quick-insert-bar::-webkit-scrollbar { height: 6px; }
+    #quick-insert-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 800;
+      margin-right: 2px;
+      user-select: none;
+    }
+    .insert-btn {
+      background: rgba(255, 255, 255, 0.92);
+      color: #111827;
+      border: 1px solid rgba(31, 41, 55, 0.22);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .insert-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      border-color: rgba(31, 41, 55, 0.32);
+      transform: none;
+    }
+
+    /* Projects dropdown */
+    #projects-dropdown { position: relative; }
+    #projects-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: 520px;
+      max-width: calc(100vw - 40px);
+      max-height: 360px;
+      overflow: auto;
+      background: rgba(255, 250, 240, 0.98);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      box-shadow:
+        0 18px 55px rgba(31, 41, 55, 0.22),
+        0 2px 0 rgba(255, 255, 255, 0.7) inset;
+      padding: 12px;
+      z-index: 20;
+    }
+    #projects-menu[hidden] { display: none; }
+    .project-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.55);
+    }
+    .project-row:hover {
+      background: rgba(37, 99, 235, 0.08);
+      border-color: rgba(37, 99, 235, 0.18);
+    }
+    .project-row:focus-visible {
+      border-color: rgba(37, 99, 235, 0.35);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
+    .project-title { font-size: 13px; font-weight: 700; color: var(--text-main); }
+    .project-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .project-meta { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+
+    /* 4. NexusUI Canvas Area */
+    .pane-header {
+      padding: 8px 15px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-color);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    #right-pane .pane-header:first-child { border-top: none; }
+
+    #nexus-ui-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(37,99,235,0.10) 0%, var(--bg-base) 70%);
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .empty-state {
+      position: absolute;
+      inset: 18px;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+    .empty-card {
+      pointer-events: none;
+      max-width: 520px;
+      width: 100%;
+      border: 1px dashed rgba(31, 41, 55, 0.22);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.55);
+      padding: 18px 18px;
+      text-align: center;
+    }
+    .empty-title { font-weight: 800; font-size: 14px; color: var(--text-main); margin-bottom: 6px; }
+    .empty-text { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+    .empty-hints { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; color: var(--text-main); font-size: 12px; }
+    .empty-hints span { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.75); }
+
+    /* Samples modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(17, 24, 39, 0.35);
+      z-index: 50;
+    }
+    .modal {
+      width: min(720px, 100%);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      padding: 16px 16px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 12px;
+    }
+    .modal-header h3 { margin: 0; font-size: 14px; }
+    .modal-subtitle { margin: 0 0 12px 0; color: var(--text-muted); font-size: 13px; }
+    .samples-list { display: grid; gap: 10px; }
+    .sample-btn {
+      text-align: left;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background: rgba(255,255,255,0.70);
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .sample-btn:hover { background: rgba(255,255,255,0.90); }
+    .sample-pill {
+      font-size: 11px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(37,99,235,0.12);
+      border: 1px solid rgba(37,99,235,0.24);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+    .sample-meta { color: var(--text-muted); font-size: 12px; }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.92);
+      color: #111827;
+      border: 1px solid rgba(31, 41, 55, 0.22);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 1);
+      border-color: rgba(31, 41, 55, 0.30);
+    }
+
+    /* Make Browse Samples match Run Code styling */
+    #browse-samples-btn {
+      background: var(--accent-green) !important;
+      color: white !important;
+      border: 1px solid rgba(4, 120, 87, 0.35) !important;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.18);
+    }
+    #browse-samples-btn:hover {
+      background: var(--accent-green-hover) !important;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.28);
+    }
+
+    /* Match Browse Templates to Browse Samples */
+    #browse-templates-btn {
+      background: var(--accent-green) !important;
+      color: white !important;
+      border: 1px solid rgba(4, 120, 87, 0.35) !important;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.18);
+    }
+    #browse-templates-btn:hover {
+      background: var(--accent-green-hover) !important;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.28);
+    }
+
+    /* Templates modal shares samples styling */
+    .template-pill {
+      font-size: 11px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(37,99,235,0.12);
+      border: 1px solid rgba(37,99,235,0.24);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+
+    /* 5. Terminal / Console Area */
+    #console-output {
+      height: 220px;
+      background: rgba(31,41,55,0.06);
+      padding: 12px 15px;
+      overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      box-shadow: inset 0 2px 10px rgba(31,41,55,0.10);
+      border-top: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TITLE HEADER -->
+  <header id="title-bar">
+    <h1 class="title" aria-label="JSPlayground">
+      <span class="title-js">JS</span><span class="title-rest">Playground</span>
+    </h1>
+  </header>
+
+  <!-- TOP BAR: Authentication & Cloud Sync -->
+  <div id="top-bar">
+    <div class="header-groups">
+      <section class="toolbar-group" aria-label="Session">
+        <div class="toolbar-label">Session</div>
+        <div class="toolbar-row">
+          <button id="auth-btn" type="button">Login</button>
+          <span id="auth-status" role="status" aria-live="polite">Status: Offline Sandbox</span>
         </div>
-        <section class="control-card">
-          <h2>Audiotool connection</h2>
-          <p class="subtle">
-            Client ID:
-            <code>379f8d67-b211-43b2-8a9d-9553aa8aad32</code>
-          </p>
-          <p class="subtle">
-            Redirect URL:
-            <code id="redirect-url"></code>
-          </p>
+      </section>
 
-          <label for="project-input">Project URL or UUID</label>
-          <input
-            id="project-input"
-            name="project-input"
-            type="text"
-            placeholder="https://beta.audiotool.com/studio?project=<project-id>"
-          />
-          <div class="buttons">
-            <button id="auth-btn" type="button">Login</button>
-            <button id="connect-btn" type="button" disabled>
-              Connect Project
-            </button>
-            <button id="disconnect-btn" type="button" disabled>Disconnect</button>
-            <button id="open-project-btn" type="button" disabled>
-              Open Project Tab
-            </button>
+      <section class="toolbar-group toolbar-group-wide" aria-label="Project">
+        <div class="toolbar-label">Project</div>
+        <div class="toolbar-row">
+          <div id="projects-dropdown">
+            <button id="list-projects-btn" type="button" aria-haspopup="menu" aria-expanded="false">List Projects</button>
+            <div id="projects-menu" role="menu" aria-label="Projects" hidden></div>
           </div>
-          <p id="audiotool-status" class="status-line">Auth not initialized.</p>
-        </section>
-      </header>
+          <input type="text" id="project-input" inputmode="text" autocomplete="off" aria-label="Project UUID" placeholder="Paste Project UUID here...">
+          <button id="connect-btn" type="button">Connect Cloud</button>
+          <button id="open-project-btn" type="button" disabled>Open Project</button>
+          <span id="mode-badge" class="mode-badge" aria-label="Mode">Offline</span>
+          <span id="project-name-badge" class="mode-badge" aria-label="Connected project name">No project</span>
+        </div>
+      </section>
 
-      <main class="panes">
-        <section class="pane editor-pane">
-          <h2>Editor</h2>
-          <div id="editor"></div>
-          <section class="control-card controls-under-editor">
-            <h2>Playground controls</h2>
-            <label for="packages">Packages (comma-separated)</label>
-            <input
-              id="packages"
-              name="packages"
-              type="text"
-              value="dayjs,lodash-es"
-              placeholder="dayjs,lodash-es,@scope/pkg@1.2.3"
-            />
-            <div class="buttons">
-              <button id="run-btn" type="button">Run</button>
-              <button id="reset-btn" type="button">Reset</button>
-            </div>
-          </section>
-        </section>
+      <!-- Execute controls live with the editor header -->
+    </div>
+  </div>
 
-        <section class="pane preview-pane">
-          <h2>Session preview</h2>
-          <p class="subtle preview-hint">
-            This pane shows the sandboxed JavaScript app state and apply activity.
-            The full Audiotool Studio opens in a separate tab.
-          </p>
-          <div class="buttons preview-buttons">
-            <button id="reload-preview-btn" type="button" disabled>
-              Refresh Data
-            </button>
-          </div>
-          <p id="preview-mode-label" class="subtle preview-mode-label">
-            Session mode: waiting for project connection.
-          </p>
-          <iframe
-            id="project-preview"
-            title="Sandbox runtime preview"
-            sandbox="allow-scripts"
-          ></iframe>
-          <section class="session-grid">
-            <article class="control-card">
-              <h2>Project session</h2>
-              <dl id="session-project-meta" class="session-meta-list"></dl>
-            </article>
-            <article class="control-card">
-              <h2>Entity summary</h2>
-              <p id="session-entity-summary" class="subtle"></p>
-              <ul id="session-entity-counts" class="session-list"></ul>
-            </article>
-            <article class="control-card">
-              <h2>Alias registry</h2>
-              <ul id="session-alias-summary" class="session-list"></ul>
-            </article>
-            <article class="control-card">
-              <h2>Last apply</h2>
-              <p id="session-last-apply" class="subtle"></p>
-            </article>
-          </section>
-          <section class="control-card">
-            <h2>Action log</h2>
-            <ul id="session-activity-log" class="session-list activity-list"></ul>
-          </section>
-        </section>
-      </main>
-
-      <details class="console-section">
-        <summary>Console</summary>
-        <pre id="console-output"></pre>
-      </details>
-
+  <div id="main-content">
+    <!-- LEFT SIDE: The Code Editor -->
+    <div id="left-pane">
+      <div class="toolbar pane-header">
+        <h3>JavaScript Editor</h3>
+        <div class="editor-controls">
+          <button id="browse-samples-btn" type="button" class="btn-secondary">Browse Samples</button>
+          <button id="browse-templates-btn" type="button" class="btn-secondary">Browse Templates</button>
+          <button id="run-btn" type="button" class="action-btn">Run Code ▷</button>
+        </div>
+      </div>
+      <div id="quick-insert-bar" aria-label="Quick insert code snippets">
+        <span id="quick-insert-label">Quick insert</span>
+        <button type="button" class="insert-btn" title="Insert a nexus.modify transaction block (where you create/update devices)" aria-label="Insert modify block" data-code='await nexus.modify((t) => {\n  \n});\n'>+ modify()</button>
+        <button type="button" class="insert-btn" title="Insert code to create a Heisenberg synth device" aria-label="Insert Heisenberg synth" data-code='const synth = t.create("heisenberg", { positionX: 100, positionY: 100, gain: 0.7 });\n'>+ Heisenberg</button>
+        <button type="button" class="insert-btn" title="Insert code to create a Delay effect (stompboxDelay)" aria-label="Insert Delay effect" data-code='const delay = t.create("stompboxDelay", { positionX: 380, positionY: 100, mix: 0.5, feedbackFactor: 0.35 });\n'>+ Delay</button>
+        <button type="button" class="insert-btn" title="Insert code to connect synth → delay using a desktopAudioCable (expects variables named synth and delay)" aria-label="Insert audio cable" data-code='t.create("desktopAudioCable", { fromSocket: synth.fields.audioOutput.location, toSocket: delay.fields.audioInput.location });\n'>+ Audio cable</button>
+        <button type="button" class="insert-btn" title="Insert code to create ToneMatrix + Machiniste and connect them with a desktopNoteCable" aria-label="Insert sequencer to drums chain" data-code='const tm = t.create("tonematrix", { positionX: 100, positionY: 260 });\nconst drums = t.create("machiniste", { positionX: 420, positionY: 260 });\nt.create("desktopNoteCable", { fromSocket: tm.fields.noteOutput.location, toSocket: drums.fields.notesInput.location });\n'>+ Seq→Drums</button>
+      </div>
+      <div id="editor-js"></div>
     </div>
 
-    <script type="module" src="/src/main.js"></script>
-  </body>
+    <div id="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize editor and preview"></div>
+
+    <!-- RIGHT SIDE: UI & Console -->
+    <div id="right-pane">
+      <div class="pane-header">Interactive UI Canvas</div>
+      <div id="nexus-ui-container">
+        <div id="preview-empty" class="empty-state">
+          <div class="empty-card" aria-hidden="true">
+            <div class="empty-title">Your UI preview will appear here</div>
+            <div class="empty-text">Run the selected template to render controls and interactive output.</div>
+            <div class="empty-hints">
+              <span>1. Choose template</span>
+              <span>2. Connect project (optional)</span>
+              <span>3. Run code</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pane-header">Terminal Output</div>
+      <div id="console-output" role="log" aria-live="polite" aria-relevant="additions"></div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const splitter = document.getElementById("splitter");
+      const left = document.getElementById("left-pane");
+      const right = document.getElementById("right-pane");
+      const container = document.getElementById("main-content");
+      if (!splitter || !left || !right || !container) return;
+
+      const MIN_PX = 320;
+
+      function setLeftWidth(px) {
+        const bounds = container.getBoundingClientRect();
+        const maxLeft = Math.max(MIN_PX, bounds.width - MIN_PX - splitter.offsetWidth);
+        const next = Math.min(Math.max(px, MIN_PX), maxLeft);
+        left.style.flex = "0 0 auto";
+        left.style.width = `${next}px`;
+        right.style.flex = "1 1 0";
+      }
+
+      function setSplitByRatio(ratio) {
+        const bounds = container.getBoundingClientRect();
+        setLeftWidth(bounds.width * ratio);
+      }
+
+      // Default 50/50 on first load (unless already set by previous drag)
+      if (!left.style.width) setSplitByRatio(0.5);
+
+      let dragging = false;
+
+      function onPointerMove(e) {
+        if (!dragging) return;
+        const bounds = container.getBoundingClientRect();
+        setLeftWidth(e.clientX - bounds.left);
+      }
+
+      function stopDrag() {
+        if (!dragging) return;
+        dragging = false;
+        document.body.style.cursor = "";
+        splitter.releasePointerCapture?.(0);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", stopDrag);
+      }
+
+      splitter.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        document.body.style.cursor = "col-resize";
+        splitter.setPointerCapture?.(e.pointerId);
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", stopDrag);
+      });
+
+      splitter.addEventListener("keydown", (e) => {
+        const step = e.shiftKey ? 40 : 20;
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
+        const current = left.getBoundingClientRect().width;
+        setLeftWidth(current + (e.key === "ArrowLeft" ? -step : step));
+      });
+
+      window.addEventListener("resize", () => {
+        // Keep the current ratio-ish when resizing window
+        const bounds = container.getBoundingClientRect();
+        const current = left.getBoundingClientRect().width;
+        const ratio = bounds.width ? current / bounds.width : 0.5;
+        setSplitByRatio(ratio);
+      });
+    })();
+  </script>
+
+  <script>
+    (() => {
+      const container = document.getElementById("nexus-ui-container");
+      const empty = document.getElementById("preview-empty");
+      if (!container || !empty) return;
+
+      function update() {
+        const hasRealChildren = Array.from(container.children).some(
+          (el) => el !== empty && el.nodeType === 1,
+        );
+        empty.style.display = hasRealChildren ? "none" : "grid";
+      }
+
+      update();
+      const obs = new MutationObserver(update);
+      obs.observe(container, { childList: true, subtree: false });
+    })();
+  </script>
+
+  <!-- SAMPLES MODAL -->
+  <div id="samples-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Code samples" aria-hidden="true" style="display: none;">
+    <div class="modal" role="document">
+      <div class="modal-header">
+        <h3>Code Samples Gallery</h3>
+        <button id="close-samples-btn" type="button" class="btn-secondary" aria-label="Close samples">✕</button>
+      </div>
+      <p class="modal-subtitle">Load pre-written scripts to see SDK routing and UI building in action.</p>
+      <div class="samples-list">
+        <button type="button" class="sample-btn load-sample-btn" data-sample="starterChain">
+          <span class="sample-pill">Routing</span>
+          <div>
+            <div>Heisenberg → Delay (Audio Cable)</div>
+            <div class="sample-meta">Create two devices and connect audio.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="seqToDrums">
+          <span class="sample-pill">Notes</span>
+          <div>
+            <div>ToneMatrix → Machiniste (Note Cable)</div>
+            <div class="sample-meta">Wire a notes output into a drum sampler.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="nexusDialGain">
+          <span class="sample-pill">NexusUI</span>
+          <div>
+            <div>Dial controls Synth Gain</div>
+            <div class="sample-meta">Render UI and update a field in the engine.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="offlineDashboard">
+          <span class="sample-pill">Offline</span>
+          <div>
+            <div>Mini Synth Dashboard (Piano + Volume)</div>
+            <div class="sample-meta">Piano keys + slider UI for offline exploration.</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMPLATES MODAL -->
+  <div id="templates-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Templates" aria-hidden="true" style="display: none;">
+    <div class="modal" role="document">
+      <div class="modal-header">
+        <h3>Templates</h3>
+        <button id="close-templates-btn" type="button" class="btn-secondary" aria-label="Close templates">✕</button>
+      </div>
+      <p class="modal-subtitle">Pick a template to load into the editor. You can still use the dropdown for quick switching.</p>
+      <div class="samples-list">
+        <button type="button" class="sample-btn load-template-btn" data-template="offline">
+          <span class="template-pill">Offline</span>
+          <div>
+            <div>Offline UI (NexusUI)</div>
+            <div class="sample-meta">Draw controls and update local engine fields.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-template-btn" data-template="online">
+          <span class="template-pill">Cloud</span>
+          <div>
+            <div>Cloud Routing (Real Studio)</div>
+            <div class="sample-meta">Spawn devices + cables. Best when connected.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-template-btn" data-template="cheatsheet">
+          <span class="template-pill">Reference</span>
+          <div>
+            <div>SDK Cheat Sheet</div>
+            <div class="sample-meta">Vocabulary + discover fields/knobs.</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>

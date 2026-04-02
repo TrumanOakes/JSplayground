@@ -1,0 +1,49 @@
+<div id="note-editor-root" class="ne-root">
+  <header class="ne-toolbar">
+    <span class="ne-heading">Note editor</span>
+    <div class="ne-toolbar-right">
+      <div class="ne-seg" role="group" aria-label="View mode">
+        <button type="button" id="ne-btn-grid" class="ne-seg-btn active">Grid</button>
+        <button type="button" id="ne-btn-timeline" class="ne-seg-btn">Timeline</button>
+      </div>
+      <button type="button" id="ne-btn-clear" class="ne-btn">Clear</button>
+      <button type="button" id="ne-btn-copy" class="ne-btn">Copy JSON</button>
+    </div>
+  </header>
+  <div class="ne-layout">
+    <div class="ne-main-stack">
+      <div id="ne-panel-grid" class="ne-panel">
+      <div class="ne-canvas-wrap">
+        <canvas id="ne-canvas" width="900" height="340"></canvas>
+      </div>
+      <p class="ne-hint">
+        Click empty cells to add · drag to move · drag right edge to resize · Delete removes selection
+      </p>
+    </div>
+      <div id="ne-panel-timeline" class="ne-panel" hidden>
+      <table class="ne-table" aria-label="Notes by time">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Pitch (MIDI)</th>
+            <th>Start (beats)</th>
+            <th>Duration (beats)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ne-timeline-body"></tbody>
+      </table>
+      <p class="ne-hint">Rows sorted by start time. Pitch rises toward the top of the grid.</p>
+      </div>
+    </div>
+    <aside class="ne-side">
+      <label class="ne-label" for="ne-json">Notes (JSON)</label>
+      <div class="ne-json-scroll">
+        <textarea id="ne-json" rows="1" spellcheck="false"></textarea>
+      </div>
+      <div class="ne-side-actions">
+        <button type="button" id="ne-btn-apply" class="ne-btn ne-btn-primary">Apply JSON</button>
+      </div>
+    </aside>
+  </div>
+</div>
