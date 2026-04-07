@@ -2,6 +2,12 @@ const TOUR_KEY = "pg_onboarding_dismissed_v2";
 
 const steps = [
   {
+    id: "appearance",
+    target: "#appearance-menu-btn",
+    title: "Appearance",
+    body: "Use Appearance to switch theme, adjust density, and tune editor font size for your screen.",
+  },
+  {
     id: "project",
     target: "#top-bar .toolbar-group[aria-label='Project']",
     title: "Project bar",
@@ -89,16 +95,16 @@ function positionCard(card, targetEl) {
     left = window.innerWidth - cardRect.width - 16;
   }
 
-  card.style.top = `${Math.max(16, top) + window.scrollY}px`;
-  card.style.left = `${Math.max(16, left) + window.scrollX}px`;
+  card.style.top = `${Math.max(16, top)}px`;
+  card.style.left = `${Math.max(16, left)}px`;
 }
 
 function positionSpotlight(spotlight, targetEl) {
   const rect = targetEl.getBoundingClientRect();
   const pad = 8;
 
-  spotlight.style.top = `${rect.top - pad + window.scrollY}px`;
-  spotlight.style.left = `${rect.left - pad + window.scrollX}px`;
+  spotlight.style.top = `${rect.top - pad}px`;
+  spotlight.style.left = `${rect.left - pad}px`;
   spotlight.style.width = `${rect.width + pad * 2}px`;
   spotlight.style.height = `${rect.height + pad * 2}px`;
 }
