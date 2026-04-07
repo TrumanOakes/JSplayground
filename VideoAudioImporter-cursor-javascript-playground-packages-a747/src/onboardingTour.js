@@ -132,6 +132,15 @@ export function startOnboardingTour(fromUserClick = false) {
   const closeBtn = overlay.querySelector(".pg-tour-close");
 
   let idx = 0;
+  const leftPane = document.getElementById("left-pane");
+  const rightPane = document.getElementById("right-pane");
+  const initialState = {
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    leftWidth: leftPane?.style.width || "",
+    leftFlex: leftPane?.style.flex || "",
+    rightFlex: rightPane?.style.flex || "",
+  };
 
   const syncLayout = () => {
     const step = steps[idx];
@@ -156,9 +165,20 @@ export function startOnboardingTour(fromUserClick = false) {
       // ignore
     }
 
+    // Restore pre-tour pane sizing and page position.
+    if (leftPane) {
+      leftPane.style.width = initialState.leftWidth;
+      leftPane.style.flex = initialState.leftFlex;
+    }
+    if (rightPane) {
+      rightPane.style.flex = initialState.rightFlex;
+    }
+    window.scrollTo({ left: initialState.scrollX, top: initialState.scrollY, behavior: "auto" });
+
     // Reflow editor/panes after overlay teardown so laptop layouts
     // return to their pre-tour sizing immediately.
     requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("pg:onboarding-ended"));
       window.dispatchEvent(new Event("resize"));
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     });

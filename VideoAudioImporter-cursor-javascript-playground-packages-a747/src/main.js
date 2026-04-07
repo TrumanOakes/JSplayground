@@ -282,6 +282,14 @@ document.addEventListener("click", (event) => {
   startOnboardingTour(true);
 });
 
+window.addEventListener("pg:onboarding-ended", () => {
+  try {
+    ctx.editor?.layout();
+  } catch {
+    // ignore
+  }
+});
+
 openProjectBtn.addEventListener("click", () => {
   if (!ctx.connectedProjectId) {
     logToConsole("No project connected yet.", true);
