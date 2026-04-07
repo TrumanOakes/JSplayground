@@ -31,15 +31,24 @@ export function initSamplesGallery() {
     if (e.key === "Escape" && modal?.style.display === "flex") close();
   });
 
-  document.querySelectorAll(".load-sample-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.getAttribute("data-sample");
-      if (!key || !codeSamples[key] || !ctx.editor) return;
-      ctx.editor.setValue(codeSamples[key]);
-      const kind =
-        btn.getAttribute("data-kind") === "template" ? "Template" : "Sample";
-      logToConsole(`Loaded ${kind}: ${key}`);
-      close();
-    });
+  // Event delegation keeps sample buttons working after HMR / modal content updates.
+  modal?.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.(".load-sample-btn");
+    if (!btn) return;
+    const key = btn.getAttribute("data-sample");
+    if (!key) return;
+    if (!codeSamples[key]) {
+      logToConsole(`Sample not found: ${key}`, true);
+      return;
+    }
+    if (!ctx.editor) {
+      logToConsole("Editor is not ready yet.", true);
+      return;
+    }
+    ctx.editor.setValue(codeSamples[key]);
+    const kind =
+      btn.getAttribute("data-kind") === "template" ? "Template" : "Sample";
+    logToConsole(`Loaded ${kind}: ${key}`);
+    close();
   });
 }

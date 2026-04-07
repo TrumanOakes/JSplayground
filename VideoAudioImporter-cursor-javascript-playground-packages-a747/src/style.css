@@ -547,6 +547,99 @@ html.theme-light .toolbar .control-card:first-child {
   margin-top: 6px;
 }
 
+/* Onboarding tour */
+#pg-tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: none;
+}
+
+#pg-tour-overlay.pg-tour-visible {
+  display: block;
+  pointer-events: auto;
+}
+
+.pg-tour-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.pg-tour-card {
+  position: absolute;
+  max-width: 340px;
+  background: var(--panel);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.45);
+  padding: 14px 16px 12px;
+  color: var(--text-main);
+  pointer-events: auto;
+}
+
+.pg-tour-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-tour-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.pg-tour-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.pg-tour-body {
+  margin: 8px 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pg-tour-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pg-tour-skip {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.pg-tour-steps {
+  display: flex;
+  gap: 6px;
+}
+
+.pg-tour-prev,
+.pg-tour-next {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+}
+
+.pg-tour-prev:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .control-card h2 {
   margin: 0;
   font-size: 0.96rem;

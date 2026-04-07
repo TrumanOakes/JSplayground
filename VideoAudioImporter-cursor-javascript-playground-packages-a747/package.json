@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@audiotool/nexus": "^0.0.11",
+    "abcjs": "^6.6.2",
     "monaco-editor": "^0.55.1",
     "nexusui": "^2.1.6"
   },

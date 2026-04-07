@@ -23,6 +23,7 @@ import { syncCloudToolbarEnabled } from "./playgroundCloudToolbar.js";
 import { initProjectsMenu } from "./projectsMenu.js";
 import { initCreateProjectFlow } from "./createProjectFlow.js";
 import { initRunUserCode } from "./runUserCode.js";
+import { initOnboardingTour } from "./onboardingTour.js";
 
 self.MonacoEnvironment = {
   getWorker(_moduleId, label) {
@@ -39,7 +40,7 @@ const initialEditorFont = (() => {
 })();
 
 ctx.editor = monaco.editor.create(document.getElementById("editor-js"), {
-  value: `// ==========================================\n// AUDIOTOOL SDK: STARTER TEMPLATE\n// ==========================================\n// Audiotool is modular! To make a sound, you need an Instrument,\n// and you need to connect it with virtual Audio Cables.\n\nconsole.log(\"--- Loading Starter Template ---\");\n\nawait nexus.modify((t) => {\n  // 1. THE INSTRUMENT\n  // Spawn a Heisenberg Synthesizer and move it to coordinate (100, 200)\n  const mySynth = t.create(\"heisenberg\", {\n    displayName: \"Lead Synth\",\n    positionX: 100,\n    positionY: 200,\n    gain: 0.7,\n  });\n\n  // 2. THE EFFECT\n  // Spawn a Delay Pedal to make the synth echo\n  const myDelay = t.create(\"stompboxDelay\", {\n    displayName: \"Echo Pedal\",\n    positionX: 400,\n    positionY: 200,\n    mix: 0.5,\n  });\n\n  // 3. THE ROUTING (Cables)\n  // Plug a virtual audio cable from the Synth's output into the Delay's input\n  t.create(\"desktopAudioCable\", {\n    fromSocket: mySynth.fields.audioOutput.location,\n    toSocket: myDelay.fields.audioInput.location,\n  });\n});\n\nconsole.log(\"> Success: Synth is wired to the Delay pedal!\");\nconsole.log(\"> Pro tip: Try changing the synth 'gain' or the Delay 'mix' value.\");`,
+  value: `// ==========================================\n// AUDIOTOOL SDK: STARTER TEMPLATE\n// ==========================================\n// Audiotool is modular! To make a sound, you need an Instrument,\n// and you need to connect it with virtual Audio Cables.\n\nconsole.log(\"--- Loading Starter Template ---\");\n\nawait nexus.modify((t) => {\n  // 1. THE INSTRUMENT\n  // Spawn a Heisenberg Synthesizer and move it to coordinate (100, 200)\n  const mySynth = t.create(\"heisenberg\", {\n    displayName: \"Lead Synth\",\n    positionX: 100,\n    positionY: 200,\n    gain: 0.7,\n  });\n\n  // 2. THE EFFECT\n  // Spawn a Delay Pedal to make the synth echo\n  const myDelay = t.create(\"stompboxDelay\", {\n    displayName: \"Echo Pedal\",\n    positionX: 400,\n    positionY: 200,\n    mix: 0.5,\n    feedbackFactor: 0.35,\n    stepLengthIndex: 2,\n  });\n\n  // 3. THE ROUTING (Cables)\n  // Plug a virtual audio cable from the Synth's output into the Delay's input\n  t.create(\"desktopAudioCable\", {\n    fromSocket: mySynth.fields.audioOutput.location,\n    toSocket: myDelay.fields.audioInput.location,\n  });\n});\n\nconsole.log(\"> Success: Synth is wired to the Delay pedal!\");\nconsole.log(\"> Pro tip: Try changing the synth 'gain' or the Delay 'mix' value.\");`,
   language: "javascript",
   theme: document.documentElement.classList.contains("pg-theme-dark")
     ? "vs-dark"
@@ -59,6 +60,7 @@ initSamplesGallery();
 
 const audiotoolClientId = "379f8d67-b211-43b2-8a9d-9553aa8aad32";
 const audiotoolScope = "project:write";
+const LAST_CONNECTED_PROJECT_KEY = "audiotool-playground-last-project-id";
 
 ctx.nexus = window.__NEXUS_INSTANCE__ || null;
 
@@ -133,6 +135,14 @@ async function initAuth() {
     ctx.audiotoolClient = null;
   } finally {
     syncCloudToolbarEnabled();
+    try {
+      const last = sessionStorage.getItem(LAST_CONNECTED_PROJECT_KEY);
+      if (last?.trim() && projectInput && !projectInput.value.trim()) {
+        projectInput.value = last.trim();
+      }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -230,6 +240,11 @@ async function connectToProject(projectId, displayNameHint) {
     openProjectBtn.disabled = false;
     ctx.connectedProjectName = projectName;
     updatePlaygroundStatus();
+    try {
+      sessionStorage.setItem(LAST_CONNECTED_PROJECT_KEY, projectId);
+    } catch {
+      /* ignore */
+    }
   } catch (err) {
     logToConsole(`Connect Error: ${err.message}`, true);
     console.error(err);
@@ -243,6 +258,7 @@ connectBtn.addEventListener("click", async () => {
 initProjectsMenu(connectToProject);
 initCreateProjectFlow(connectToProject);
 initRunUserCode();
+initOnboardingTour();
 
 openProjectBtn.addEventListener("click", () => {
   if (!ctx.connectedProjectId) {

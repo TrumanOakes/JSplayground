@@ -1322,6 +1322,7 @@
           <input type="text" id="project-input" inputmode="text" autocomplete="off" aria-label="Studio URL or project ID" placeholder="https://beta.audiotool.com/studio?project=<project-id>">
           <button id="connect-btn" type="button">Connect Project</button>
           <button id="open-project-btn" type="button" disabled>Open Project</button>
+          <button id="take-tour-btn" type="button" class="btn-secondary">Take tour</button>
         </div>
         <div class="playground-status-bar">
           <span id="playground-status" role="status" aria-live="polite">Offline mode · run without logging in; log in for cloud</span>
@@ -1510,6 +1511,13 @@
             <div class="sample-meta">Wire a notes output into a drum sampler.</div>
           </div>
         </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="mixerMelody">
+          <span class="sample-pill">Audio</span>
+          <div>
+            <div>Heisenberg + mixer + melody</div>
+            <div class="sample-meta">Synth auto-patched to a strip + MIDI clip — press Play in Studio to hear it.</div>
+          </div>
+        </button>
         <button type="button" class="sample-btn load-sample-btn" data-sample="nexusDialGain">
           <span class="sample-pill">NexusUI</span>
           <div>
@@ -1522,6 +1530,13 @@
           <div>
             <div>Mini Synth Dashboard (Piano + Volume)</div>
             <div class="sample-meta">Piano keys + slider UI for offline exploration.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="abcVisualizer">
+          <span class="sample-pill">Notation</span>
+          <div>
+            <div>ABC visualizer + timeline import</div>
+            <div class="sample-meta">Render score in canvas and import notes to a synced cloud project.</div>
           </div>
         </button>
         <div class="samples-section-heading">Templates</div>
