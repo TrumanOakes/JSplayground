@@ -1008,6 +1008,56 @@
       font-weight: 700;
     }
 
+    /* Keep empty state readable when canvas height is limited (laptops). */
+    @media (max-height: 900px) {
+      .empty-state {
+        inset: 10px;
+        place-items: start center;
+        overflow: auto;
+      }
+
+      .empty-card {
+        max-height: 100%;
+        border-radius: 16px;
+        padding: 14px 14px 12px;
+      }
+
+      .empty-eyebrow {
+        margin-bottom: 6px;
+      }
+
+      .empty-text {
+        margin-bottom: 10px;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .empty-actions {
+        margin-bottom: 10px;
+        gap: 8px;
+      }
+
+      .empty-cta {
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+
+      .empty-workflows {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .empty-workflow {
+        padding: 12px;
+        border-radius: 14px;
+      }
+
+      .empty-workflow-tagline,
+      .empty-workflow-steps {
+        font-size: 12px;
+      }
+    }
+
     html.pg-theme-dark .empty-card {
       background:
         radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 58%),
