@@ -574,11 +574,9 @@ html.theme-light .toolbar .control-card:first-child {
   position: absolute;
   border-radius: 14px;
   border: 2px solid rgba(95, 201, 190, 0.95);
-  background: rgba(255, 253, 246, 0.18);
-  box-shadow:
-    0 0 0 3px rgba(95, 201, 190, 0.14),
-    0 8px 20px rgba(44, 62, 80, 0.06);
-  transition: top 180ms ease, left 180ms ease, width 180ms ease, height 180ms ease;
+  background: transparent;
+  box-shadow: 0 0 0 2px rgba(95, 201, 190, 0.14);
+  transition: none;
   pointer-events: none;
 }
 

@@ -146,6 +146,10 @@ export function startOnboardingTour(fromUserClick = false) {
     window.removeEventListener("scroll", syncLayout, true);
     window.removeEventListener("keydown", onKeyDown);
     overlay.classList.remove("pg-tour-visible");
+    spotlight.style.top = "0px";
+    spotlight.style.left = "0px";
+    spotlight.style.width = "0px";
+    spotlight.style.height = "0px";
     try {
       localStorage.setItem(TOUR_KEY, "1");
     } catch {
