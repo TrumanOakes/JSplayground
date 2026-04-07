@@ -423,6 +423,136 @@ piano.on("change", (note) => {
 
 console.log("> Dashboard rendered. Click piano keys.");`,
 
+  offlineSynthDelayPlayground: `// ==========================================
+// SAMPLE: OFFLINE SYNTH + DELAY PLAYGROUND
+// ==========================================
+console.log("--- Loading sample: Offline Synth + Delay Playground ---");
+
+let synth;
+let delay;
+
+await nexus.modify((t) => {
+  synth = t.create("heisenberg", {
+    displayName: "Offline Synth",
+    positionX: 120,
+    positionY: 170,
+    gain: 0.7,
+  });
+
+  delay = t.create("stompboxDelay", {
+    displayName: "Offline Delay",
+    positionX: 430,
+    positionY: 170,
+    mix: 0.4,
+    feedbackFactor: 0.3,
+  });
+
+  t.create("desktopAudioCable", {
+    fromSocket: synth.fields.audioOutput.location,
+    toSocket: delay.fields.audioInput.location,
+  });
+});
+
+const ui = document.getElementById("nexus-ui-container");
+ui.innerHTML = \`
+  <div style="font-weight:900; margin-bottom:12px;">Offline Synth + Delay Playground</div>
+  <div style="display:flex; gap:18px; flex-wrap:wrap; justify-content:center;">
+    <div><div style="font-size:12px; margin-bottom:6px;">Synth gain</div><div id="pg-gain"></div></div>
+    <div><div style="font-size:12px; margin-bottom:6px;">Delay mix</div><div id="pg-mix"></div></div>
+    <div><div style="font-size:12px; margin-bottom:6px;">Feedback</div><div id="pg-feedback"></div></div>
+  </div>
+\`;
+
+const gainDial = new Nexus.Dial("#pg-gain", { size: [96, 96], min: 0, max: 1, value: 0.7 });
+const mixDial = new Nexus.Dial("#pg-mix", { size: [96, 96], min: 0, max: 1, value: 0.4 });
+const feedbackDial = new Nexus.Dial("#pg-feedback", { size: [96, 96], min: 0, max: 0.95, value: 0.3 });
+
+gainDial.on("change", async (v) => {
+  await nexus.modify((t) => t.update(synth.fields.gain, v));
+  console.log("> gain:", v.toFixed(2));
+});
+
+mixDial.on("change", async (v) => {
+  await nexus.modify((t) => t.update(delay.fields.mix, v));
+  console.log("> delay mix:", v.toFixed(2));
+});
+
+feedbackDial.on("change", async (v) => {
+  await nexus.modify((t) => t.update(delay.fields.feedbackFactor, v));
+  console.log("> feedback:", v.toFixed(2));
+});
+
+console.log("> Offline routing ready. Tweak dials and run again to reset scene.");`,
+
+  offlinePianoPresets: `// ==========================================
+// SAMPLE: OFFLINE PIANO + PRESET BUTTONS
+// ==========================================
+console.log("--- Loading sample: Offline Piano + Presets ---");
+
+let synth;
+let reverb;
+await nexus.modify((t) => {
+  synth = t.create("heisenberg", {
+    displayName: "Preset Synth",
+    positionX: 120,
+    positionY: 150,
+    gain: 0.68,
+  });
+  reverb = t.create("stompboxReverb", {
+    displayName: "Preset Reverb",
+    positionX: 420,
+    positionY: 150,
+    mix: 0.38,
+  });
+  t.create("desktopAudioCable", {
+    fromSocket: synth.fields.audioOutput.location,
+    toSocket: reverb.fields.audioInput.location,
+  });
+});
+
+const ui = document.getElementById("nexus-ui-container");
+ui.innerHTML = \`
+  <div style="font-weight:900; margin-bottom:12px;">Offline Piano + Presets</div>
+  <div id="preset-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
+  <div id="piano-wrap"></div>
+\`;
+
+const presets = [
+  { id: "pluck", label: "Pluck", gain: 0.55, reverbMix: 0.18 },
+  { id: "pad", label: "Pad", gain: 0.62, reverbMix: 0.58 },
+  { id: "lead", label: "Lead", gain: 0.78, reverbMix: 0.24 },
+  { id: "ambient", label: "Ambient", gain: 0.5, reverbMix: 0.75 },
+];
+
+const row = document.getElementById("preset-row");
+for (const p of presets) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.textContent = p.label;
+  btn.style.cssText = "padding:7px 12px; border-radius:10px; border:1px solid var(--border); background:rgba(255,255,255,0.8); cursor:pointer;";
+  btn.addEventListener("click", async () => {
+    await nexus.modify((t) => {
+      t.update(synth.fields.gain, p.gain);
+      t.update(reverb.fields.mix, p.reverbMix);
+    });
+    console.log(\`> preset: \${p.label} (gain=\${p.gain.toFixed(2)}, reverb=\${p.reverbMix.toFixed(2)})\`);
+  });
+  row.appendChild(btn);
+}
+
+const piano = new Nexus.Piano("#piano-wrap", {
+  size: [360, 120],
+  mode: "button",
+  lowNote: 48,
+  highNote: 72,
+});
+
+piano.on("change", (note) => {
+  if (note?.state) console.log("> note on:", note.note);
+});
+
+console.log("> Use preset buttons, then play keys.");`,
+
   abcVisualizer: `// ==========================================
 // SAMPLE: ABC VISUALIZER + IMPORT (Gakki or fast Heisenberg)
 // ==========================================

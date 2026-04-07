@@ -23,7 +23,7 @@ import { syncCloudToolbarEnabled } from "./playgroundCloudToolbar.js";
 import { initProjectsMenu } from "./projectsMenu.js";
 import { initCreateProjectFlow } from "./createProjectFlow.js";
 import { initRunUserCode } from "./runUserCode.js";
-import { initOnboardingTour } from "./onboardingTour.js";
+import { initOnboardingTour, startOnboardingTour } from "./onboardingTour.js";
 
 self.MonacoEnvironment = {
   getWorker(_moduleId, label) {
@@ -259,6 +259,28 @@ initProjectsMenu(connectToProject);
 initCreateProjectFlow(connectToProject);
 initRunUserCode();
 initOnboardingTour();
+
+document.addEventListener("click", (event) => {
+  const action = event.target.closest("[data-empty-action]")?.dataset.emptyAction;
+  if (!action) return;
+
+  if (action === "samples") {
+    document.getElementById("browse-samples-btn")?.click();
+  }
+
+  if (action === "run") {
+    document.getElementById("run-btn")?.click();
+  }
+});
+
+// Fallback delegation: ensures "Take tour" works even if the direct
+// listener is missed during dynamic UI reflows/theme toggles.
+document.addEventListener("click", (event) => {
+  const takeTour = event.target.closest("#take-tour-btn");
+  if (!takeTour) return;
+  event.preventDefault();
+  startOnboardingTour(true);
+});
 
 openProjectBtn.addEventListener("click", () => {
   if (!ctx.connectedProjectId) {

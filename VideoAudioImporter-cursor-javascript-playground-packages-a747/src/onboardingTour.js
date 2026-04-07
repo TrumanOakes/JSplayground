@@ -1,40 +1,46 @@
-const TOUR_KEY = "pg_onboarding_dismissed_v1";
+const TOUR_KEY = "pg_onboarding_dismissed_v2";
 
 const steps = [
   {
     id: "project",
     target: "#top-bar .toolbar-group[aria-label='Project']",
     title: "Project bar",
-    body: "Log in, list or create cloud projects, connect them, and open Studio.",
+    body: "Sign in, create or list cloud projects, connect a project, then open Studio when you're ready.",
   },
   {
     id: "editor",
-    target: "#left-pane .pane-header",
-    title: "Editor",
-    body: "Use Samples to load examples, then Run Code ▷ to apply changes.",
+    target: "#left-pane",
+    title: "JavaScript editor",
+    body: "Load a sample to get started fast, then use Run Code to apply changes and generate UI.",
   },
   {
     id: "canvas",
-    target: "#right-pane .pane-header:first-of-type",
-    title: "UI Canvas",
-    body: "Generated dashboards and controls appear here when samples or your code run.",
+    target: "#nexus-ui-container",
+    title: "UI canvas",
+    body: "Your generated dashboard and controls appear here after samples or your code run.",
+  },
+  {
+    id: "terminal",
+    target: "#console-output",
+    title: "Terminal output",
+    body: "Check this panel after each run for logs, status messages, and errors to guide your next edit.",
   },
 ];
 
-function ensureOverlay() {
-  let overlay = document.getElementById("pg-tour-overlay");
-  if (overlay) return overlay;
-
-  overlay = document.createElement("div");
-  overlay.id = "pg-tour-overlay";
-  overlay.innerHTML = `
+function overlayMarkup() {
+  return `
     <div class="pg-tour-backdrop"></div>
-    <div class="pg-tour-card" role="dialog" aria-modal="true" aria-labelledby="pg-tour-title">
+    <div class="pg-tour-spotlight" aria-hidden="true"></div>
+    <div class="pg-tour-card" role="dialog" aria-modal="true" aria-labelledby="pg-tour-title" aria-describedby="pg-tour-body">
+      <div class="pg-tour-meta">
+        <span class="pg-tour-kicker">Quick tour</span>
+        <span class="pg-tour-progress"></span>
+      </div>
       <div class="pg-tour-title-row">
         <h3 id="pg-tour-title" class="pg-tour-title"></h3>
         <button type="button" class="pg-tour-close" aria-label="Dismiss tour">✕</button>
       </div>
-      <p class="pg-tour-body"></p>
+      <p id="pg-tour-body" class="pg-tour-body"></p>
       <div class="pg-tour-footer">
         <button type="button" class="pg-tour-skip">Skip</button>
         <div class="pg-tour-steps">
@@ -44,28 +50,57 @@ function ensureOverlay() {
       </div>
     </div>
   `;
-  document.body.appendChild(overlay);
+}
+
+function ensureOverlay(forceRebuild = false) {
+  let overlay = document.getElementById("pg-tour-overlay");
+
+  if (overlay && !forceRebuild) {
+    const ok =
+      overlay.querySelector(".pg-tour-card") &&
+      overlay.querySelector(".pg-tour-spotlight") &&
+      overlay.querySelector(".pg-tour-skip") &&
+      overlay.querySelector(".pg-tour-close");
+    if (ok) return overlay;
+  }
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "pg-tour-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = overlayMarkup();
   return overlay;
 }
 
 function positionCard(card, targetEl) {
   const rect = targetEl.getBoundingClientRect();
   const cardRect = card.getBoundingClientRect();
-  const margin = 12;
+  const margin = 14;
 
-  // Prefer below; if it doesn't fit, flip above.
   let top = rect.bottom + margin;
-  if (top + cardRect.height > window.innerHeight) {
+  if (top + cardRect.height > window.innerHeight - 16) {
     top = rect.top - cardRect.height - margin;
   }
 
-  const left = Math.min(
-    window.innerWidth - cardRect.width - 16,
-    Math.max(16, rect.left)
-  );
+  let left = rect.left;
+  if (left + cardRect.width > window.innerWidth - 16) {
+    left = window.innerWidth - cardRect.width - 16;
+  }
 
   card.style.top = `${Math.max(16, top) + window.scrollY}px`;
-  card.style.left = `${left + window.scrollX}px`;
+  card.style.left = `${Math.max(16, left) + window.scrollX}px`;
+}
+
+function positionSpotlight(spotlight, targetEl) {
+  const rect = targetEl.getBoundingClientRect();
+  const pad = 8;
+
+  spotlight.style.top = `${rect.top - pad + window.scrollY}px`;
+  spotlight.style.left = `${rect.left - pad + window.scrollX}px`;
+  spotlight.style.width = `${rect.width + pad * 2}px`;
+  spotlight.style.height = `${rect.height + pad * 2}px`;
 }
 
 export function startOnboardingTour(fromUserClick = false) {
@@ -75,10 +110,12 @@ export function startOnboardingTour(fromUserClick = false) {
     // ignore storage errors
   }
 
-  const overlay = ensureOverlay();
+  const overlay = ensureOverlay(true);
   const card = overlay.querySelector(".pg-tour-card");
+  const spotlight = overlay.querySelector(".pg-tour-spotlight");
   const titleEl = overlay.querySelector(".pg-tour-title");
   const bodyEl = overlay.querySelector(".pg-tour-body");
+  const progressEl = overlay.querySelector(".pg-tour-progress");
   const skipBtn = overlay.querySelector(".pg-tour-skip");
   const prevBtn = overlay.querySelector(".pg-tour-prev");
   const nextBtn = overlay.querySelector(".pg-tour-next");
@@ -86,19 +123,34 @@ export function startOnboardingTour(fromUserClick = false) {
 
   let idx = 0;
 
-  const handleResize = () => {
+  const syncLayout = () => {
     const step = steps[idx];
     const target = document.querySelector(step.target);
-    if (target) positionCard(card, target);
+    if (!target) return;
+    positionSpotlight(spotlight, target);
+    positionCard(card, target);
   };
 
   function endTour() {
-    window.removeEventListener("resize", handleResize);
+    window.removeEventListener("resize", syncLayout);
+    window.removeEventListener("scroll", syncLayout, true);
+    window.removeEventListener("keydown", onKeyDown);
     overlay.classList.remove("pg-tour-visible");
     try {
       localStorage.setItem(TOUR_KEY, "1");
     } catch {
       // ignore
+    }
+  }
+
+  function onKeyDown(event) {
+    if (event.key === "Escape") endTour();
+    if (event.key === "ArrowRight") {
+      if (idx + 1 < steps.length) showStep(idx + 1);
+      else endTour();
+    }
+    if (event.key === "ArrowLeft" && idx > 0) {
+      showStep(idx - 1);
     }
   }
 
@@ -119,31 +171,30 @@ export function startOnboardingTour(fromUserClick = false) {
     idx = i;
     titleEl.textContent = step.title;
     bodyEl.textContent = step.body;
+    progressEl.textContent = `${idx + 1} of ${steps.length}`;
+    prevBtn.disabled = idx === 0;
+    nextBtn.textContent = idx === steps.length - 1 ? "Finish" : "Next";
     overlay.classList.add("pg-tour-visible");
 
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => positionCard(card, target), 260);
-
-    prevBtn.disabled = idx === 0;
-    nextBtn.textContent = idx === steps.length - 1 ? "Done" : "Next";
+    target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    setTimeout(syncLayout, 220);
   }
 
   skipBtn.onclick = endTour;
   closeBtn.onclick = endTour;
-  prevBtn.onclick = () => {
-    if (idx > 0) showStep(idx - 1);
-  };
-  nextBtn.onclick = () => {
-    if (idx + 1 < steps.length) showStep(idx + 1);
-    else endTour();
-  };
+  prevBtn.onclick = () => idx > 0 && showStep(idx - 1);
+  nextBtn.onclick = () => (idx + 1 < steps.length ? showStep(idx + 1) : endTour());
 
-  window.addEventListener("resize", handleResize);
+  window.addEventListener("resize", syncLayout);
+  window.addEventListener("scroll", syncLayout, true);
+  window.addEventListener("keydown", onKeyDown);
   showStep(0);
 }
 
 export function initOnboardingTour() {
-  window.addEventListener("load", () => startOnboardingTour(false));
+  const autoStart = () => startOnboardingTour(false);
+  if (document.readyState === "complete") autoStart();
+  else window.addEventListener("load", autoStart, { once: true });
 
   const tourBtn = document.getElementById("take-tour-btn");
   if (tourBtn) {

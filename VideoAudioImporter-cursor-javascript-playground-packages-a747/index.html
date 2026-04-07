@@ -796,108 +796,245 @@
       place-items: center;
       pointer-events: none;
     }
+
     .empty-card {
       pointer-events: none;
-      max-width: min(580px, 100%);
+      position: relative;
+      max-width: min(680px, 100%);
       width: 100%;
-      border: 1px dashed rgba(31, 41, 55, 0.22);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.55);
-      padding: 18px 18px;
+      border: 1px solid rgba(167, 151, 113, 0.24);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.7), transparent 58%),
+        linear-gradient(180deg, rgba(255, 252, 245, 0.96), rgba(249, 243, 232, 0.92));
+      box-shadow:
+        0 18px 40px rgba(44, 62, 80, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      padding: 24px 24px 22px;
       text-align: center;
+      overflow: hidden;
     }
-    .empty-title { font-weight: 800; font-size: 15px; color: var(--text-main); margin-bottom: 6px; }
-    .empty-text { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+
+    .empty-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(95, 201, 190, 0.14), transparent 28%),
+        radial-gradient(circle at 82% 78%, rgba(236, 201, 124, 0.12), transparent 24%);
+      pointer-events: none;
+    }
+
+    .empty-eyebrow {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5aaea5;
+    }
+
+    .empty-title {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 8px;
+      font-size: 28px;
+      line-height: 1.05;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--text-main);
+    }
+
+    .empty-text {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto 16px;
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .empty-actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      pointer-events: auto;
+    }
+
+    .empty-cta {
+      appearance: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    .empty-cta:hover {
+      transform: translateY(-1px);
+    }
+
+    .empty-cta--primary {
+      border: 1px solid rgba(63, 175, 164, 0.92);
+      background: linear-gradient(180deg, #69d0c4, #4eb5aa);
+      color: #fffef9;
+      box-shadow: 0 10px 24px rgba(95, 201, 190, 0.22);
+    }
+
+    .empty-cta--ghost {
+      border: 1px solid rgba(167, 151, 113, 0.28);
+      background: rgba(255, 255, 255, 0.62);
+      color: var(--text-main);
+    }
+
     .empty-workflows {
+      position: relative;
+      z-index: 1;
       display: grid;
-      grid-template-columns: 1.08fr 0.92fr;
-      gap: 12px 16px;
+      grid-template-columns: 1.06fr 0.94fr;
+      gap: 14px;
       margin: 0;
       text-align: left;
-      align-items: start;
+      align-items: stretch;
     }
-    @media (max-width: 520px) {
-      .empty-workflows { grid-template-columns: 1fr; }
+
+    @media (max-width: 640px) {
+      .empty-card {
+        padding: 20px 16px 16px;
+        border-radius: 18px;
+      }
+
+      .empty-title {
+        font-size: 22px;
+      }
+
+      .empty-actions {
+        flex-direction: column;
+      }
+
+      .empty-workflows {
+        grid-template-columns: 1fr;
+      }
     }
+
     .empty-workflow {
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-      background: rgba(255, 255, 255, 0.5);
+      position: relative;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(31, 41, 55, 0.12);
+      background: rgba(255, 255, 255, 0.58);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
     }
-    /* Offline = default path */
-    .empty-workflow.empty-workflow--default {
-      padding: 14px 15px;
-      border-color: rgba(15, 118, 110, 0.32);
-      background: rgba(255, 255, 255, 0.72);
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+    .empty-workflow--default {
+      border-color: rgba(95, 201, 190, 0.34);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(243, 251, 249, 0.92));
+      box-shadow:
+        0 10px 24px rgba(95, 201, 190, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
     }
-    html.pg-theme-dark .empty-workflow {
-      background: rgba(255, 255, 255, 0.05);
-    }
-    html.pg-theme-dark .empty-workflow.empty-workflow--default {
-      background: rgba(255, 255, 255, 0.07);
-      border-color: rgba(45, 212, 191, 0.22);
-      box-shadow: none;
-    }
-    .empty-workflow.empty-workflow--studio {
-      padding: 14px 16px 16px;
-    }
-    .empty-workflow-head {
-      font-weight: 800;
+
+    .empty-workflow-badge {
+      display: inline-flex;
+      margin-bottom: 10px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(95, 201, 190, 0.14);
+      color: #317d75;
       font-size: 11px;
+      font-weight: 800;
       letter-spacing: 0.06em;
       text-transform: uppercase;
+    }
+
+    .empty-workflow-head {
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--text-main);
-      margin: 0 0 6px 0;
+      margin: 0 0 8px 0;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
     }
-    .empty-workflow-head.empty-workflow-head--default {
+
+    .empty-workflow-head--default {
       font-size: 12px;
-      letter-spacing: 0.07em;
     }
+
     .empty-workflow-icon {
       font-size: 15px;
       line-height: 1;
-      font-style: normal;
-      opacity: 0.92;
+      opacity: 0.95;
     }
+
     .empty-workflow-tagline {
-      font-size: 12px;
+      font-size: 12.5px;
       color: var(--text-muted);
-      line-height: 1.4;
-      margin: 0 0 8px 0;
+      line-height: 1.5;
+      margin: 0 0 10px 0;
       font-weight: 500;
     }
+
     .empty-workflow-steps {
       margin: 0;
-      padding-left: 1.2rem;
-      font-size: 12px;
+      padding-left: 1.15rem;
+      font-size: 12.5px;
       color: var(--text-muted);
-      line-height: 1.45;
+      line-height: 1.55;
     }
-    .empty-workflow-steps li { margin-bottom: 3px; }
-    .empty-workflow-steps li:last-child { margin-bottom: 0; }
+
+    .empty-workflow-steps li {
+      margin-bottom: 4px;
+    }
+
+    .empty-workflow-steps li:last-child {
+      margin-bottom: 0;
+    }
+
     .empty-workflow-steps .wf-action {
       color: var(--text-main);
-      font-weight: 600;
+      font-weight: 700;
     }
-    .empty-workflow-steps .wf-muted {
-      color: var(--text-muted);
-      font-weight: 500;
+
+    html.pg-theme-dark .empty-card {
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 58%),
+        linear-gradient(180deg, rgba(16, 23, 34, 0.94), rgba(12, 18, 28, 0.98));
+      border-color: rgba(95, 201, 190, 0.16);
+      box-shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
     }
-    .empty-workflow--studio .empty-workflow-tagline {
-      margin-bottom: 10px;
+
+    html.pg-theme-dark .empty-workflow {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(148, 163, 184, 0.14);
+      box-shadow: none;
     }
-    .empty-workflow--studio .empty-workflow-steps {
-      font-size: 11.5px;
-      font-weight: 400;
-      line-height: 1.5;
+
+    html.pg-theme-dark .empty-workflow--default {
+      background: rgba(95, 201, 190, 0.08);
+      border-color: rgba(95, 201, 190, 0.22);
     }
-    .empty-workflow--studio .empty-workflow-steps .wf-action {
-      font-weight: 500;
+
+    html.pg-theme-dark .empty-workflow-badge {
+      background: rgba(95, 201, 190, 0.14);
+      color: #8ae0d7;
+    }
+
+    html.pg-theme-dark .empty-cta--ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(148, 163, 184, 0.18);
+      color: var(--text-main);
     }
 
     /* Samples modal */
@@ -1036,6 +1173,40 @@
     html.pg-theme-dark .btn-secondary:hover {
       background: rgba(255, 255, 255, 0.12);
       border-color: rgba(45, 212, 191, 0.28);
+    }
+    #take-tour-btn {
+      background: linear-gradient(180deg, rgba(15, 118, 110, 0.18), rgba(15, 118, 110, 0.11));
+      color: #0e5a55;
+      border: 1px solid rgba(15, 118, 110, 0.4);
+      font-weight: 700;
+      border-radius: 999px;
+      padding-left: 12px;
+      padding-right: 12px;
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.75) inset,
+        0 4px 10px rgba(15, 118, 110, 0.12);
+    }
+    #take-tour-btn:hover {
+      background: linear-gradient(180deg, rgba(15, 118, 110, 0.24), rgba(15, 118, 110, 0.15));
+      border-color: rgba(15, 118, 110, 0.5);
+      color: #0b4f4a;
+    }
+    #take-tour-btn::before {
+      content: "✦";
+      margin-right: 7px;
+      color: rgba(15, 118, 110, 0.95);
+      font-size: 0.95em;
+      line-height: 1;
+    }
+    html.pg-theme-dark #take-tour-btn {
+      background: linear-gradient(180deg, rgba(45, 212, 191, 0.2), rgba(45, 212, 191, 0.12));
+      color: #dffdfa;
+      border-color: rgba(45, 212, 191, 0.4);
+      box-shadow: 0 4px 12px rgba(45, 212, 191, 0.12);
+    }
+    html.pg-theme-dark #take-tour-btn:hover {
+      background: linear-gradient(180deg, rgba(45, 212, 191, 0.26), rgba(45, 212, 191, 0.16));
+      border-color: rgba(45, 212, 191, 0.5);
     }
 
     /* Modal close (samples): stronger contrast on cream panel */
@@ -1357,30 +1528,48 @@
       <div id="nexus-ui-container">
         <div id="preview-empty" class="empty-state">
           <div class="empty-card" aria-hidden="true">
-            <div class="empty-title">Your UI preview will appear here</div>
-            <div class="empty-text">Run code to generate UI here.</div>
+            <div class="empty-eyebrow">Interactive canvas</div>
+            <div class="empty-text">
+              Run code to render controls here, or start with a sample and iterate from there.
+            </div>
+
+            <div class="empty-actions">
+              <button type="button" class="empty-cta empty-cta--primary" data-empty-action="samples">
+                Browse Samples
+              </button>
+              <button type="button" class="empty-cta empty-cta--ghost" data-empty-action="run">
+                Run Code
+              </button>
+            </div>
+
             <div class="empty-workflows" role="note">
               <div class="empty-workflow empty-workflow--default">
                 <div class="empty-workflow-head empty-workflow-head--default">
                   <span class="empty-workflow-icon" aria-hidden="true">⚡</span>
                   Offline mode
                 </div>
-                <p class="empty-workflow-tagline">No login — run code now, or try Samples first.</p>
+                <p class="empty-workflow-tagline">
+                  Fastest path to a first result. No login required.
+                </p>
                 <ol class="empty-workflow-steps">
-                  <li>Browse Samples <span class="wf-muted">(optional)</span></li>
-                  <li><span class="wf-action">Run code</span></li>
+                  <li><span class="wf-action">Browse Samples</span> or write code</li>
+                  <li><span class="wf-action">Run Code</span> to generate UI</li>
                 </ol>
               </div>
+
               <div class="empty-workflow empty-workflow--studio">
                 <div class="empty-workflow-head">
                   <span class="empty-workflow-icon" aria-hidden="true">☁️</span>
-                  Studio mode (cloud)
+                  Studio mode
                 </div>
-                <p class="empty-workflow-tagline">Connect a project, then sync and open in Audiotool Studio.</p>
+                <p class="empty-workflow-tagline">
+                  Connect a cloud project, then sync and open it in Audiotool Studio.
+                </p>
                 <ol class="empty-workflow-steps">
                   <li><span class="wf-action">Log in</span></li>
-                  <li>Select a project (URL or <span class="wf-action">List Projects</span>)</li>
-                  <li><span class="wf-action">Connect Project</span> → Run → <span class="wf-action">Open Project</span></li>
+                  <li>Select a project or paste a URL</li>
+                  <li><span class="wf-action">Connect Project</span></li>
+                  <li>Run code, then <span class="wf-action">Open Project</span></li>
                 </ol>
               </div>
             </div>
@@ -1494,9 +1683,24 @@
         <h3>Samples</h3>
         <button id="close-samples-btn" type="button" class="btn-secondary" aria-label="Close">✕</button>
       </div>
-      <p class="modal-subtitle">Short demos below; full editor starters are in the second section.</p>
+      <p class="modal-subtitle">Samples are grouped by mode so you can start with what works for your current setup.</p>
       <div class="samples-list">
-        <div class="samples-section-heading">Samples</div>
+        <div class="samples-section-heading">Offline (No Login Required)</div>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="offlineSynthDelayPlayground">
+          <span class="sample-pill">Offline</span>
+          <div>
+            <div>Offline Synth + Delay Playground</div>
+            <div class="sample-meta">Create Heisenberg + Delay, then control gain/mix/feedback with Nexus dials.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="offlinePianoPresets">
+          <span class="sample-pill">Offline</span>
+          <div>
+            <div>Offline Piano + Presets</div>
+            <div class="sample-meta">Play a piano UI and switch Pluck/Pad/Lead/Ambient presets with buttons.</div>
+          </div>
+        </button>
+        <div class="samples-section-heading">Cloud / Studio (Login + Project Connection)</div>
         <button type="button" class="sample-btn load-sample-btn" data-sample="starterChain">
           <span class="sample-pill">Routing</span>
           <div>
@@ -1511,13 +1715,6 @@
             <div class="sample-meta">Wire a notes output into a drum sampler.</div>
           </div>
         </button>
-        <button type="button" class="sample-btn load-sample-btn" data-sample="mixerMelody">
-          <span class="sample-pill">Audio</span>
-          <div>
-            <div>Heisenberg + mixer + melody</div>
-            <div class="sample-meta">Synth auto-patched to a strip + MIDI clip — press Play in Studio to hear it.</div>
-          </div>
-        </button>
         <button type="button" class="sample-btn load-sample-btn" data-sample="nexusDialGain">
           <span class="sample-pill">NexusUI</span>
           <div>
@@ -1525,11 +1722,11 @@
             <div class="sample-meta">Render UI and update a field in the engine.</div>
           </div>
         </button>
-        <button type="button" class="sample-btn load-sample-btn" data-sample="offlineDashboard">
-          <span class="sample-pill">Offline</span>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="mixerMelody">
+          <span class="sample-pill">Audio</span>
           <div>
-            <div>Mini Synth Dashboard (Piano + Volume)</div>
-            <div class="sample-meta">Piano keys + slider UI for offline exploration.</div>
+            <div>Heisenberg + mixer + melody</div>
+            <div class="sample-meta">Synth auto-patched to a strip + MIDI clip — press Play in Studio to hear it.</div>
           </div>
         </button>
         <button type="button" class="sample-btn load-sample-btn" data-sample="abcVisualizer">
@@ -1540,7 +1737,7 @@
           </div>
         </button>
         <div class="samples-section-heading">Templates</div>
-        <p class="samples-section-note">These replace the entire editor with a fresh starter script.</p>
+        <p class="samples-section-note">These replace the entire editor with a fresh starter script grouped by mode.</p>
         <button type="button" class="sample-btn load-sample-btn" data-sample="templateOffline" data-kind="template">
           <span class="sample-pill sample-pill--template">Template</span>
           <div>
@@ -1548,18 +1745,18 @@
             <div class="sample-meta">Draw controls with NexusUI and update the local engine.</div>
           </div>
         </button>
-        <button type="button" class="sample-btn load-sample-btn" data-sample="templateOnline" data-kind="template">
-          <span class="sample-pill sample-pill--template">Template</span>
-          <div>
-            <div>Cloud routing (real Studio)</div>
-            <div class="sample-meta">Spawn devices + cables; best when connected to a project.</div>
-          </div>
-        </button>
         <button type="button" class="sample-btn load-sample-btn" data-sample="templateCheatsheet" data-kind="template">
           <span class="sample-pill sample-pill--template">Template</span>
           <div>
             <div>SDK cheat sheet</div>
             <div class="sample-meta">Vocabulary + how to discover fields and knobs.</div>
+          </div>
+        </button>
+        <button type="button" class="sample-btn load-sample-btn" data-sample="templateOnline" data-kind="template">
+          <span class="sample-pill sample-pill--template">Template</span>
+          <div>
+            <div>Cloud routing (real Studio)</div>
+            <div class="sample-meta">Spawn devices + cables; best when connected to a project.</div>
           </div>
         </button>
       </div>
